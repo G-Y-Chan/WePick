@@ -1,7 +1,7 @@
 # Makefile at: root/Makefile
 
 BACKEND_DIR := backend
-FRONTEND_DIR := WePick
+FRONTEND_DIR := frontend
 BACKEND_MAIN := main.go
 
 .PHONY: dev backend frontend backend-test frontend-test
