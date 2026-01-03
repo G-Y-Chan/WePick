@@ -18,7 +18,7 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
 
   const handleCreateRoom = async () => {
-    console.log("Create Room pressed");
+    //console.log("Create Room pressed");
     try {
       setError(null);
       setLoading(true);
@@ -30,10 +30,12 @@ export default function Index() {
         params: { roomCode: code },
       });
     } catch (e: unknown) {
-      console.error("Error in Create Room:", e);
-      const message =
-        e instanceof Error ? e.message : "Unknown error occurred";
-      setError(message);
+      console.error("Error in Creating Room:", e);
+      const message = "Internal Server Error"
+        router.push({
+          pathname: "/error",
+          params: {errorMessage: message },
+        })
     } finally {
       setLoading(false);
     }
@@ -56,7 +58,6 @@ export default function Index() {
           <>
             <Button title="Create Room" onPress={handleCreateRoom} />
             <Button title="Join Room" onPress={() => {}} />
-            <Button title="Test Create Room" onPress={() => {}} />
           </>
         )}
       </View>

@@ -5,7 +5,13 @@ export default function RootLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ title: "Home" }} />
       <Stack.Screen name="room" options={{ title: "Room" }} />
-      <Stack.Screen name="join-room" options={{ title: "Join Room" }} />
+      <Stack.Screen
+        name="error"
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
