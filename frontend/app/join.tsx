@@ -5,47 +5,45 @@ import {
   Button,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { router } from "expo-router";
-import { getRoomCode, verifyRoomCode } from "../services/api/room";
-
-const sleep = (ms: number) =>
-  new Promise<void>(resolve => setTimeout(resolve, ms));
+import { verifyRoomCode } from "../services/api/room";
 
 export default function Index() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [text, onChangeText] = useState('');
 
-  const handleCreateRoom = async () => {
-    //console.log("Create Room pressed");
+  const handleJoinRoom = async (roomCode: number) => {
     try {
       setError(null);
       setLoading(true);
-      const code = await getRoomCode();
-      console.log("room code:", code);
-
-      router.push({
-        pathname: "/room",
-        params: { roomCode: code },
-      });
+      const response = await verifyRoomCode(roomCode);
+      console.log("room code:", roomCode);
+      const status: boolean = response.toLowerCase() === 'true';
+      if (status) {
+        router.push({
+          pathname: "/room",
+          params: { roomCode: roomCode },
+        });
+      } else {
+        const message = "Invalid Room Code"
+        router.push({
+          pathname: "/error",
+          params: {errorMessage: message },
+        })
+      }
     } catch (e: unknown) {
-      console.error("Error in Creating Room:", e);
+      console.error("Error in Joining Room:", e);
       const message = "Internal Server Error"
         router.push({
           pathname: "/error",
           params: {errorMessage: message },
         })
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const handleJoinRoom = async () => {
-    router.push({
-      pathname: "/join",
-    });
-  };
+  }
 
   return (
     <SafeAreaProvider>
@@ -62,8 +60,17 @@ export default function Index() {
           </>
         ) : (
           <>
-            <Button title="Create Room" onPress={handleCreateRoom} />
-            <Button title="Join Room" onPress={handleJoinRoom} />
+            <TextInput
+                style={styles.input}
+                onChangeText={onChangeText}
+                value={text}
+                placeholder="Enter room Code"
+            />
+            <Button title="Join Room" onPress={async () => {
+                var code = parseInt(text)
+                console.log(code)
+                await handleJoinRoom(code)
+            }} />
           </>
         )}
       </View>
@@ -77,5 +84,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 16,
+  },
+  input: {
+    height: 40,
+    width: 200,
+    margin: 12,
+    borderWidth: 1,
+    padding: 10,
   },
 });

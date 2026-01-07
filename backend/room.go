@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"fmt"
 )
 
 var intervals []util.Interval
@@ -17,7 +18,7 @@ func getRoomCode(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
     // Set the HTTP status code (optional, http.StatusOK is 200).
 	w.WriteHeader(http.StatusOK)
-	var code = wrapper()
+	var code = generateWrapper()
 	m := util.Message{"Room Code", code}
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -25,7 +26,7 @@ func getRoomCode(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func wrapper() string {
+func generateWrapper() string {
 	paddedLength := 6
 	var code int
 	code = generateRoomCode()
@@ -93,4 +94,44 @@ func insertRoomCode(code int) {
 		newInterval := util.Interval{code, code}
 		intervals = slices.Insert(intervals, newIntervalIndex, newInterval)
 	}
+}
+
+func verifyRoomCode(w http.ResponseWriter, req *http.Request) {
+	defer req.Body.Close()
+
+	var roomCode string
+
+	err := json.NewDecoder(req.Body).Decode(&roomCode)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} else {
+		fmt.Print(roomCode)
+	}
+
+	// Inform client that the response type is JSON
+	w.Header().Set("Content-Type", "application/json")
+
+	var status = verifyWrapper(roomCode)
+	m := util.Message{"Verification Status", status}
+	if err := json.NewEncoder(w).Encode(m); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+    // Set the HTTP status code (optional, http.StatusOK is 200).
+	w.WriteHeader(http.StatusOK)
+}
+
+func verifyWrapper(roomCode string) string {
+	var intCode, err = strconv.Atoi(roomCode)
+	if err != nil {
+		return "false"
+	}
+	for i := 0; i < len(intervals); i++ {
+		if intCode >= intervals[i].Start && intCode <= intervals[i].End {
+			return "true"
+		}
+	}
+	return "false"
 }

@@ -53,5 +53,6 @@ func main() {
 	http.HandleFunc("/headers", headers)
 	http.HandleFunc("/post-email", postEmail)
 	http.HandleFunc("/get-room-code", getRoomCode)
+	http.HandleFunc("/verify-room-code", verifyRoomCode)
     http.ListenAndServe(":8090", nil)
 }
