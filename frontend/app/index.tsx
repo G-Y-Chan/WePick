@@ -27,7 +27,10 @@ export default function Index() {
 
       router.push({
         pathname: "/room",
-        params: { roomCode: code },
+        params: { 
+          roomCode: code,
+          host: "true"
+        },
       });
     } catch (e: unknown) {
       console.error("Error in Creating Room:", e);

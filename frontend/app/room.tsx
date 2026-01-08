@@ -11,12 +11,25 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 
 export default function Room() {
-  const { roomCode } = useLocalSearchParams();
+  const { roomCode, host } = useLocalSearchParams();
+  const isHost = host === "true";
   return (
     <SafeAreaProvider>
-      <View style={styles.container}>
-        <Text style={styles.text}>Code to join: {roomCode}</Text>
-      </View>
+      { isHost ? (
+        <>
+          <View style={styles.container}>
+            <Button title="Start" onPress={() => {}} />
+            <Text style={styles.text}>Code to join: {roomCode}</Text>
+          </View>
+        </>
+      ) : (
+        <>
+          <View style={styles.container}>
+            <Text>Waiting for host...</Text>
+            <Text style={styles.text}>Code to join: {roomCode}</Text>
+          </View>
+        </>
+      )}
     </SafeAreaProvider>
   );
 }

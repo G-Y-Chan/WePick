@@ -27,7 +27,10 @@ export default function Index() {
       if (status) {
         router.push({
           pathname: "/room",
-          params: { roomCode: roomCode },
+          params: { 
+            roomCode: roomCode,
+            host: "false"
+        },
         });
       } else {
         const message = "Invalid Room Code"
