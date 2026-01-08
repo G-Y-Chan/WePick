@@ -23,6 +23,7 @@ export default function Index() {
       const response = await verifyRoomCode(roomCode);
       console.log("room code:", roomCode);
       const status: boolean = response.toLowerCase() === 'true';
+      setLoading(false);
       if (status) {
         router.push({
           pathname: "/room",
