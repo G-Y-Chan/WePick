@@ -8,9 +8,34 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import { useLocalSearchParams } from 'expo-router';
 
 export default function Room() {
+  const handleStartRoom = () => {
+      try {
+        const response = 'true';
+        console.log("room code:", roomCode);
+        const status: boolean = response.toLowerCase() === 'true';
+        if (status) {
+          router.push({pathname: "/swipe"});
+        } else {
+          const message = "Unable to Start"
+          router.push({
+            pathname: "/error",
+            params: {errorMessage: message },
+          })
+        }
+      } catch (e: unknown) {
+        console.error("Error in Starting Room:", e);
+        const message = "Internal Server Error"
+          router.push({
+            pathname: "/error",
+            params: {errorMessage: message },
+          })
+      }
+  }
+
   const { roomCode, host } = useLocalSearchParams();
   const isHost = host === "true";
   return (
@@ -18,7 +43,7 @@ export default function Room() {
       { isHost ? (
         <>
           <View style={styles.container}>
-            <Button title="Start" onPress={() => {}} />
+            <Button title="Start" onPress={handleStartRoom} />
             <Text style={styles.text}>Code to join: {roomCode}</Text>
           </View>
         </>
