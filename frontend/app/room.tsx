@@ -10,12 +10,23 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useLocalSearchParams } from 'expo-router';
+import { startRoom } from "@/services/api/room";
 
 export default function Room() {
-  const handleStartRoom = () => {
+  const { roomCode, host } = useLocalSearchParams();
+  let stringCode: string;
+
+  if (Array.isArray(roomCode)) {
+    stringCode = roomCode.join();
+  } else {
+    stringCode = roomCode;
+  }
+  const isHost = host === "true";
+
+  const handleStartRoom = async () => {
       try {
-        const response = 'true';
-        console.log("room code:", roomCode);
+        const response = await startRoom(stringCode);
+        console.log("Starting room:", roomCode);
         const status: boolean = response.toLowerCase() === 'true';
         if (status) {
           router.push({pathname: "/swipe"});
@@ -36,8 +47,6 @@ export default function Room() {
       }
   }
 
-  const { roomCode, host } = useLocalSearchParams();
-  const isHost = host === "true";
   return (
     <SafeAreaProvider>
       { isHost ? (

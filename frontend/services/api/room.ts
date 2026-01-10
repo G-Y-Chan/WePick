@@ -14,3 +14,8 @@ export async function verifyRoomCode(roomCode: number): Promise<string> {
   const res = await api.post<Message>("/verify-room-code", roomCode.toString());
   return res.Body;
 }
+
+export async function startRoom(roomCode: string): Promise<string> {
+  const res = await api.post<Message>("/start-room", roomCode);
+  return res.Body;
+}

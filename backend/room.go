@@ -135,3 +135,30 @@ func verifyWrapper(roomCode string) string {
 	}
 	return "false"
 }
+
+func verifyStart(w http.ResponseWriter, req *http.Request) {
+	defer req.Body.Close()
+
+	var roomCode string
+
+	err := json.NewDecoder(req.Body).Decode(&roomCode)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} else {
+		fmt.Print("Starting room: " + roomCode)
+	}
+
+	// Inform client that the response type is JSON
+	w.Header().Set("Content-Type", "application/json")
+
+	var status = verifyWrapper(roomCode)
+	m := util.Message{"Verification Status", status}
+	if err := json.NewEncoder(w).Encode(m); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+    // Set the HTTP status code (optional, http.StatusOK is 200).
+	w.WriteHeader(http.StatusOK)
+}
