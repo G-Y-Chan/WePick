@@ -2,17 +2,18 @@ package main
 
 import (
 	"encoding/json"
-	"main/util"
+	"backend/util"
 	"net/http"
 	"fmt"
+	"strconv"
 )
 
-func getRoomCode(w http.ResponseWriter, req *http.Request) {
+func (s *Server) getRoomCode(w http.ResponseWriter, req *http.Request) {
 	// Inform client that the response type is JSON
 	w.Header().Set("Content-Type", "application/json")
     // Set the HTTP status code (optional, http.StatusOK is 200).
 	w.WriteHeader(http.StatusOK)
-	var code = generateWrapper()
+	var code = s.roomService.GenerateCode()
 	m := util.Message{"Room Code", code}
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -20,7 +21,7 @@ func getRoomCode(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func verifyRoomCode(w http.ResponseWriter, req *http.Request) {
+func (s *Server) verifyRoomCode(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	var roomCode string
@@ -36,7 +37,7 @@ func verifyRoomCode(w http.ResponseWriter, req *http.Request) {
 	// Inform client that the response type is JSON
 	w.Header().Set("Content-Type", "application/json")
 
-	var status = verifyWrapper(roomCode)
+	var status = strconv.FormatBool(s.roomService.VerifyCode(roomCode))
 	m := util.Message{"Verification Status", status}
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -47,7 +48,7 @@ func verifyRoomCode(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func verifyStart(w http.ResponseWriter, req *http.Request) {
+func (s *Server) verifyStart(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	var roomCode string
@@ -63,8 +64,12 @@ func verifyStart(w http.ResponseWriter, req *http.Request) {
 	// Inform client that the response type is JSON
 	w.Header().Set("Content-Type", "application/json")
 
-	var status = verifyWrapper(roomCode)
-	m := util.Message{"Verification Status", status}
+	var status = s.roomService.VerifyCode(roomCode)
+	if status {
+		fmt.Println("Host of room " + roomCode + " has started room.")
+	}
+	stringStatus := strconv.FormatBool(status)
+	m := util.Message{"Verification Status", stringStatus}
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

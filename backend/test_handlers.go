@@ -4,10 +4,10 @@ import (
     "fmt"
     "net/http"
 	"encoding/json"
-	"main/util"
+	"backend/util"
 )
 
-func test(w http.ResponseWriter, req *http.Request) {
+func (s *Server) test(w http.ResponseWriter, req *http.Request) {
 	// Inform client that the response type is JSON
 	w.Header().Set("Content-Type", "application/json")
     // Set the HTTP status code (optional, http.StatusOK is 200).
@@ -19,7 +19,7 @@ func test(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func headers(w http.ResponseWriter, req *http.Request) {
+func (s *Server) headers(w http.ResponseWriter, req *http.Request) {
 
     for name, headers := range req.Header {
         for _, h := range headers {
@@ -28,7 +28,7 @@ func headers(w http.ResponseWriter, req *http.Request) {
     }
 }
 
-func postEmail(w http.ResponseWriter, req *http.Request) {
+func (s *Server) postEmail(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	var email string
