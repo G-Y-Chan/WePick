@@ -40,6 +40,7 @@ export default function Index() {
         })
       }
     } catch (e: unknown) {
+      setLoading(false);
       console.error("Error in Joining Room:", e);
       const message = "Internal Server Error"
         router.push({
