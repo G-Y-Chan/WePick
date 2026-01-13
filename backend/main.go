@@ -3,6 +3,7 @@ package main
 import (
     "net/http"
 	"backend/room"
+	"backend/middleware"
 )
 
 type Server struct {
@@ -16,13 +17,13 @@ func main() {
 	}
 
 	// Test endpoints
-	http.HandleFunc("/test", s.test)
-	http.HandleFunc("/headers", s.headers)
-	http.HandleFunc("/post-email", s.postEmail)
+	http.HandleFunc("/test", middleware.WithCORS(s.test))
+	http.HandleFunc("/headers", middleware.WithCORS(s.headers))
+	http.HandleFunc("/post-email", middleware.WithCORS(s.postEmail))
 
 	// Actual endpoints
-	http.HandleFunc("/get-room-code", s.getRoomCode)
-	http.HandleFunc("/verify-room-code", s.verifyRoomCode)
-	http.HandleFunc("/start-room", s.verifyStart)
+	http.HandleFunc("/get-room-code", middleware.WithCORS(s.getRoomCode))
+	http.HandleFunc("/verify-room-code", middleware.WithCORS(s.verifyRoomCode))
+	http.HandleFunc("/start-room", middleware.WithCORS(s.verifyStart))
     http.ListenAndServe(":8090", nil)
 }
