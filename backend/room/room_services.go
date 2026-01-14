@@ -1,23 +1,26 @@
 package room
 
 import (
-	"backend/util"
 	"math/rand"
-	"slices"
 	"strconv"
 	"sync"
 )
 
+type Room struct {
+    Code      int
+    Started   bool
+}
 
 type Service struct {
 	mu        sync.RWMutex
-	intervals []util.Interval
+	rooms     map[int]*Room
 	max       int
 }
 
 // NewService creates a new RoomService with a given max code value (exclusive).
 func NewService(max int) *Service {
 	return &Service{
+		rooms: make(map[int]*Room),
 		max: max,
 	}
 }
@@ -44,20 +47,11 @@ func (s *Service) GenerateCode() string {
 
 func (s *Service) generateRoomCodeLocked() int {
 	var code int
-	code = rand.Intn(s.max)
-	if len(s.intervals) == 0 {
-		return code
-	}
-	for i := 0; i < len(s.intervals); i++ {
-		start := s.intervals[i].Start
-		end := s.intervals[i].End
-		if code >= end {
-			code += (end - start + 1)
-		} else if code >= start {
-			code := end + (code - start + 1)
-			return code
-		} else {
-			return code
+	for true {
+		code = rand.Intn(s.max)
+		_, exists := s.rooms[code]
+		if !exists {
+			break
 		}
 	}
 	s.max = s.max - 1
@@ -67,32 +61,11 @@ func (s *Service) generateRoomCodeLocked() int {
 // Logic behind generating new room code guarantees validity of code.
 // Thus, no checks required before inserting new code into intervals.
 func (s *Service) insertRoomCodeLocked(code int) {
-	var newIntervalIndex = -1
-	for i := 0; i < len(s.intervals); i++ {
-		start := s.intervals[i].Start
-		end := s.intervals[i].End
-		if code >= end {
-			if code == end + 1 {
-				s.intervals[i].End = code
-				return
-			}
-		} else {
-			if code+1 == start {
-				s.intervals[i].Start = code
-				return
-			} else {
-				newIntervalIndex = i
-				break
-			}
-		}
-	}
-	// New code larger than all previous ones
-	if newIntervalIndex == -1 {
-		s.intervals = append(s.intervals, util.Interval{code, code})
-	} else {
-		newInterval := util.Interval{code, code}
-		s.intervals = slices.Insert(s.intervals, newIntervalIndex, newInterval)
-	}
+	room := &Room{
+        Code:    code,
+        Started: false,
+    }
+	s.rooms[code] = room
 }
 
 func (s *Service) VerifyCode(roomCode string) bool {
@@ -100,10 +73,6 @@ func (s *Service) VerifyCode(roomCode string) bool {
 	if err != nil {
 		return false
 	}
-	for i := 0; i < len(s.intervals); i++ {
-		if intCode >= s.intervals[i].Start && intCode <= s.intervals[i].End {
-			return true
-		}
-	}
-	return false
+	_, exists := s.rooms[intCode]
+	return exists
 }
