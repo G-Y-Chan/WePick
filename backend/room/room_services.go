@@ -76,3 +76,25 @@ func (s *Service) VerifyCode(roomCode string) bool {
 	_, exists := s.rooms[intCode]
 	return exists
 }
+
+func (s *Service) StartRoomLocked(roomCode int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	room, exists := s.rooms[roomCode]
+	if !exists {
+		return false
+	}
+	room.Started = true
+	return true
+}
+
+// Room code is verified before this function is called.
+func (s *Service) JoinRoomLocked(roomCode int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	room, _ := s.rooms[roomCode]
+	if room.Started {
+		return false
+	}
+	return true
+}

@@ -21,7 +21,8 @@ export default function Index() {
       setError(null);
       setLoading(true);
       const response = await verifyRoomCode(roomCode);
-      console.log("room code:", roomCode);
+      console.log("Trying to join room: ", roomCode);
+      console.log("Response from joining: ", response);
       const status: boolean = response.toLowerCase() === 'true';
       setLoading(false);
       if (status) {
