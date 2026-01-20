@@ -8,7 +8,7 @@ BACKEND_MAIN := main.go
 
 ## Run only the Go backend
 backend:
-	cd $(BACKEND_DIR) && go run $(BACKEND_MAIN)
+	cd $(BACKEND_DIR) && go run .
 
 ## Run only the React Native / Expo app
 frontend:

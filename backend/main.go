@@ -23,7 +23,7 @@ func main() {
 
 	// Actual endpoints
 	http.HandleFunc("/get-room-code", middleware.WithCORS(s.getRoomCode))
-	http.HandleFunc("/verify-room-code", middleware.WithCORS(s.handleRoomStatus))
-	http.HandleFunc("/start-room", middleware.WithCORS(s.handleStart))
+	http.HandleFunc("/join-room", middleware.WithCORS(s.handleRoomJoin))
+	http.HandleFunc("/start-room", middleware.WithCORS(s.handleRoomStart))
     http.ListenAndServe(":8090", nil)
 }
