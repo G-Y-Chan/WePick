@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"fmt"
 	"strconv"
+	"errors"
 )
 
 func (s *Server) getRoomCode(w http.ResponseWriter, req *http.Request) {
@@ -21,12 +22,10 @@ func (s *Server) getRoomCode(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *Server) handleRoomStatus(w http.ResponseWriter, req *http.Request) {
+func (s *Server) handleRoomJoin(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
-	var roomCode string
-
-	err := json.NewDecoder(req.Body).Decode(&roomCode)
+	roomCode, err := parseRoomCode(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -37,64 +36,58 @@ func (s *Server) handleRoomStatus(w http.ResponseWriter, req *http.Request) {
 	// Inform client that the response type is JSON
 	w.Header().Set("Content-Type", "application/json")
 
-	var status = s.roomService.VerifyCode(roomCode)
-	if status {
-		intCode, _ := strconv.Atoi(roomCode)
-		var joined = strconv.FormatBool(s.roomService.JoinRoomLocked(intCode))
-		m := util.Message{"Verification Status", joined}
-		if err := json.NewEncoder(w).Encode(m); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Set the HTTP status code (optional, http.StatusOK is 200).
-		w.WriteHeader(http.StatusOK)
-	} else {
-		m := util.Message{"Verification Status", "false"}
-		if err := json.NewEncoder(w).Encode(m); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-}
-
-func (s *Server) handleStart(w http.ResponseWriter, req *http.Request) {
-	defer req.Body.Close()
-
-	var roomCode string
-
-	err := json.NewDecoder(req.Body).Decode(&roomCode)
+	joined, err := s.roomService.JoinRoom(roomCode)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	} else {
-		fmt.Println("Attempting to start room: " + roomCode)
 	}
 
-	// Inform client that the response type is JSON
+	m := util.Message{"Join Status", strconv.FormatBool(joined)}
+	if err := json.NewEncoder(w).Encode(m); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) handleRoomStart(w http.ResponseWriter, req *http.Request) {
+	roomCode, err := parseRoomCode(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fmt.Println("Attempting to start room:", roomCode)
 	w.Header().Set("Content-Type", "application/json")
 
-	var status = s.roomService.VerifyCode(roomCode)
-	if status {
-		// Verify code ensures valid code, thus error variable is redundant
-		intCode, _ := strconv.Atoi(roomCode)
-		var started = s.roomService.StartRoomLocked(intCode)
-		if started {
-			fmt.Println("Host of room " + roomCode + " has started room.")
-			stringStatus := strconv.FormatBool(status)
-			m := util.Message{"Verification Status", stringStatus}
-			if err := json.NewEncoder(w).Encode(m); err == nil {
-				w.WriteHeader(http.StatusOK)
-			} else {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-		} else {
-			// Room was not started successfully.
-			http.Error(w, "Room not started successfully.", http.StatusInternalServerError)
-		}
-	} else {
-		// Invalid room code provided in request
-		http.Error(w, "Invalid room code provided.", http.StatusInternalServerError)
+	started, err := s.roomService.StartRoom(roomCode)
+	if err != nil {
+		// invalid room code or invalid state → client error
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+
+	m := util.Message{"Start Status", strconv.FormatBool(started)}
+	if err := json.NewEncoder(w).Encode(m); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func parseRoomCode(req *http.Request) (string, error) {
+	defer req.Body.Close()
+
+	var roomCode string
+	if err := json.NewDecoder(req.Body).Decode(&roomCode); err != nil {
+		return "", err
+	}
+
+	if roomCode == "" {
+		return "", errors.New("empty room code")
+	}
+
+	return roomCode, nil
 }

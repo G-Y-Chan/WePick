@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import { verifyRoomCode } from "../services/api/room";
+import { joinRoom } from "../services/api/room";
 
 export default function Index() {
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +20,7 @@ export default function Index() {
     try {
       setError(null);
       setLoading(true);
-      const response = await verifyRoomCode(roomCode);
+      const response = await joinRoom(roomCode);
       console.log("Trying to join room: ", roomCode);
       console.log("Response from joining: ", response);
       const status: boolean = response.toLowerCase() === 'true';
