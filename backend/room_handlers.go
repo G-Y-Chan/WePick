@@ -38,7 +38,20 @@ func (s *Server) handleRoomJoin(w http.ResponseWriter, req *http.Request) {
 
 	joined, err := s.roomService.JoinRoom(roomCode)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(util.ErrorResponse{
+			Header: "Join Room Error",
+			Body:   err.Error(),
+		})
+		return
+	}
+
+	if !joined {
+		w.WriteHeader(http.StatusForbidden) // Room already started
+		json.NewEncoder(w).Encode(util.ErrorResponse{
+			Header: "Join Room Error",
+			Body:   "room already started",
+		})
 		return
 	}
 
@@ -63,8 +76,11 @@ func (s *Server) handleRoomStart(w http.ResponseWriter, req *http.Request) {
 
 	started, err := s.roomService.StartRoom(roomCode)
 	if err != nil {
-		// invalid room code or invalid state → client error
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(util.ErrorResponse{
+			Header: "Start Room Error",
+			Body:   err.Error(),
+		})
 		return
 	}
 
