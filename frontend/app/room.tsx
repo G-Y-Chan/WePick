@@ -24,32 +24,35 @@ export default function Room() {
   const isHost = host === "true";
 
   const handleStartRoom = async () => {
-      try {
-        const response = await startRoom(stringCode);
-        console.log("Starting room:", roomCode);
-        const status: boolean = response.toLowerCase() === 'true';
-        if (status) {
-          router.push({pathname: "/swipe"});
-        } else {
-          const message = "Unable to Start"
-          router.push({
-            pathname: "/error",
-            params: {errorMessage: message },
-          })
-        }
-      } catch (e: unknown) {
-        console.error("Error in Starting Room:", e);
-        const message = "Internal Server Error"
-          router.push({
-            pathname: "/error",
-            params: {errorMessage: message },
-          })
+    try {
+      const response = await startRoom(stringCode);
+      console.log("Starting room:", roomCode);
+      const status: boolean = response.toLowerCase() === 'true';
+      if (status) {
+        router.push({ pathname: "/swipe" });
+      } else {
+        const message = "Unable to Start"
+        router.push({
+          pathname: "/error",
+          params: { errorMessage: message },
+        })
       }
+    } catch (e: unknown) {
+      console.error("Error in Starting Room:", e);
+      let message = "Internal Server Error";
+      if (e instanceof Error) {
+        message = e.message;
+      }
+      router.push({
+        pathname: "/error",
+        params: { errorMessage: message },
+      })
+    }
   }
 
   return (
     <SafeAreaProvider>
-      { isHost ? (
+      {isHost ? (
         <>
           <View style={styles.container}>
             <Button title="Start" onPress={handleStartRoom} />

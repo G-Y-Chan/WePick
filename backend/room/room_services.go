@@ -101,14 +101,13 @@ func (s *Service) JoinRoomLocked(roomCode int) bool {
 }
 
 func (s *Service) JoinRoom(codeStr string) (bool, error) {
-	if !s.VerifyCode(codeStr) {
-		return false, fmt.Errorf("invalid room code")
-	}
-
 	code, err := strconv.Atoi(codeStr)
 	if err != nil {
-		// If VerifyCode already guarantees numeric, you can treat this as internal inconsistency
 		return false, fmt.Errorf("room code not numeric")
+	}
+
+	if !s.VerifyCode(codeStr) {
+		return false, fmt.Errorf("invalid room code")
 	}
 
 	joined := s.JoinRoomLocked(code)
@@ -123,8 +122,10 @@ func (s *Service) StartRoom(codeStr string) (bool, error) {
 
 	started := s.StartRoomLocked(code)
 	if !started {
-		return false, fmt.Errorf("invalid room code or room already started")
+		return false, fmt.Errorf("invalid room code")
 	}
+
+	return true, nil
 
 	return true, nil
 }

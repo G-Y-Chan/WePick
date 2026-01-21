@@ -15,7 +15,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
     if (!res.ok) {
       // HTTP error (4xx / 5xx)
-      throw new Error(text || `Request failed with status ${res.status}`);
+      let errorMessage = `Request failed with status ${res.status}`;
+      try {
+        const errorData = JSON.parse(text);
+        errorMessage = errorData.Body || errorData.Message || errorMessage;
+      } catch (e) {
+        errorMessage = text || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
     if (!text) {
