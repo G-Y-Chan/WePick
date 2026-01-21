@@ -28,26 +28,30 @@ export default function Index() {
       if (status) {
         router.push({
           pathname: "/room",
-          params: { 
+          params: {
             roomCode: roomCode,
             host: "false"
-        },
+          },
         });
       } else {
+        // This case might be handled by the catch block now if the API client throws
         const message = "Invalid Room Code"
         router.push({
           pathname: "/error",
-          params: {errorMessage: message },
+          params: { errorMessage: message },
         })
       }
     } catch (e: unknown) {
       setLoading(false);
       console.error("Error in Joining Room:", e);
-      const message = "Internal Server Error"
-        router.push({
-          pathname: "/error",
-          params: {errorMessage: message },
-        })
+      let message = "Internal Server Error";
+      if (e instanceof Error) {
+        message = e.message;
+      }
+      router.push({
+        pathname: "/error",
+        params: { errorMessage: message },
+      })
     }
   }
 
@@ -67,15 +71,15 @@ export default function Index() {
         ) : (
           <>
             <TextInput
-                style={styles.input}
-                onChangeText={onChangeText}
-                value={text}
-                placeholder="Enter room Code"
+              style={styles.input}
+              onChangeText={onChangeText}
+              value={text}
+              placeholder="Enter room Code"
             />
             <Button title="Join Room" onPress={async () => {
-                var code = parseInt(text)
-                console.log(code)
-                await handleJoinRoom(code)
+              var code = parseInt(text)
+              console.log(code)
+              await handleJoinRoom(code)
             }} />
           </>
         )}
