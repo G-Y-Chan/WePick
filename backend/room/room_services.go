@@ -101,12 +101,13 @@ func (s *Service) JoinRoomLocked(roomCode int) bool {
 }
 
 func (s *Service) JoinRoom(codeStr string) (bool, error) {
-	if !s.VerifyCode(codeStr) {
-		return false, fmt.Errorf("invalid room code")
-	}
-
+	code, err := strconv.Atoi(codeStr)
 	if err != nil {
 		return false, fmt.Errorf("room code not numeric")
+	}
+
+	if !s.VerifyCode(codeStr) {
+		return false, fmt.Errorf("invalid room code")
 	}
 
 	joined := s.JoinRoomLocked(code)
