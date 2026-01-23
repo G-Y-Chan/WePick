@@ -84,8 +84,8 @@ export default function Swipe() {
   function onSwipeComplete(direction: "left" | "right") {
     const swipedCard = data[index];
     // handle accept/reject here
-    // if (direction === "right") console.log("ACCEPT", swipedCard);
-    // else console.log("REJECT", swipedCard);
+    if (direction === "right") console.log("ACCEPT", swipedCard);
+    else console.log("REJECT", swipedCard);
 
     position.setValue({ x: 0, y: 0 });
     setIndex((prev) => prev + 1);
