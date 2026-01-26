@@ -1,20 +1,20 @@
-package main
+package handlers
 
 import (
-	"encoding/json"
 	"backend/util"
-	"net/http"
-	"fmt"
-	"strconv"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
 )
 
-func (s *Server) getRoomCode(w http.ResponseWriter, req *http.Request) {
+func (s *Server) GetRoomCode(w http.ResponseWriter, req *http.Request) {
 	// Inform client that the response type is JSON
 	w.Header().Set("Content-Type", "application/json")
     // Set the HTTP status code (optional, http.StatusOK is 200).
 	w.WriteHeader(http.StatusOK)
-	var code = s.roomService.GenerateCode()
+	var code = s.RoomService.GenerateCode()
 	m := util.Message{"Room Code", code}
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -22,7 +22,7 @@ func (s *Server) getRoomCode(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *Server) handleRoomJoin(w http.ResponseWriter, req *http.Request) {
+func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	roomCode, err := parseRoomCode(req)
@@ -36,7 +36,7 @@ func (s *Server) handleRoomJoin(w http.ResponseWriter, req *http.Request) {
 	// Inform client that the response type is JSON
 	w.Header().Set("Content-Type", "application/json")
 
-	joined, err := s.roomService.JoinRoom(roomCode)
+	joined, err := s.RoomService.JoinRoom(roomCode)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(util.ErrorResponse{
@@ -64,7 +64,7 @@ func (s *Server) handleRoomJoin(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) handleRoomStart(w http.ResponseWriter, req *http.Request) {
+func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 	roomCode, err := parseRoomCode(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -74,7 +74,7 @@ func (s *Server) handleRoomStart(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("Attempting to start room:", roomCode)
 	w.Header().Set("Content-Type", "application/json")
 
-	started, err := s.roomService.StartRoom(roomCode)
+	started, err := s.RoomService.StartRoom(roomCode)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(util.ErrorResponse{

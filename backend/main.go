@@ -4,26 +4,23 @@ import (
     "net/http"
 	"backend/room"
 	"backend/middleware"
+	"backend/handlers"
 )
-
-type Server struct {
-	roomService *room.Service
-}
 
 func main() {
 	roomService := room.NewService(1_000_000)
-	s := &Server{
-		roomService: roomService,
+	s := &handlers.Server{
+		RoomService: roomService,
 	}
 
 	// Test endpoints
-	http.HandleFunc("/test", middleware.WithCORS(s.test))
-	http.HandleFunc("/headers", middleware.WithCORS(s.headers))
-	http.HandleFunc("/post-email", middleware.WithCORS(s.postEmail))
+	http.HandleFunc("/test", middleware.WithCORS(s.Test))
+	http.HandleFunc("/headers", middleware.WithCORS(s.Headers))
+	http.HandleFunc("/post-email", middleware.WithCORS(s.PostEmail))
 
 	// Actual endpoints
-	http.HandleFunc("/get-room-code", middleware.WithCORS(s.getRoomCode))
-	http.HandleFunc("/join-room", middleware.WithCORS(s.handleRoomJoin))
-	http.HandleFunc("/start-room", middleware.WithCORS(s.handleRoomStart))
+	http.HandleFunc("/get-room-code", middleware.WithCORS(s.GetRoomCode))
+	http.HandleFunc("/join-room", middleware.WithCORS(s.HandleRoomJoin))
+	http.HandleFunc("/start-room", middleware.WithCORS(s.HandleRoomStart))
     http.ListenAndServe(":8090", nil)
 }
