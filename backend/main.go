@@ -22,5 +22,9 @@ func main() {
 	http.HandleFunc("/get-room-code", middleware.WithCORS(s.GetRoomCode))
 	http.HandleFunc("/join-room", middleware.WithCORS(s.HandleRoomJoin))
 	http.HandleFunc("/start-room", middleware.WithCORS(s.HandleRoomStart))
-    http.ListenAndServe(":8090", nil)
+
+	// WebSocket endpoint
+	http.HandleFunc("/ws", s.HandleRoomWS)
+
+	http.ListenAndServe(":8090", nil)
 }
