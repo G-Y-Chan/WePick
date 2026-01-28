@@ -5,11 +5,16 @@ import (
 	"math/rand"
 	"strconv"
 	"sync"
+	"github.com/gorilla/websocket"
+	"backend/util"
 )
 
 type Room struct {
     Code      int
     Started   bool
+
+	clients   map[*websocket.Conn]struct{}
+	mu        sync.RWMutex
 }
 
 type Service struct {
@@ -65,6 +70,7 @@ func (s *Service) insertRoomCodeLocked(code int) {
 	room := &Room{
         Code:    code,
         Started: false,
+		clients: make(map[*websocket.Conn]struct{}),
     }
 	s.rooms[code] = room
 }
@@ -78,16 +84,35 @@ func (s *Service) VerifyCode(roomCode string) bool {
 	return exists
 }
 
-func (s *Service) StartRoomLocked(roomCode int) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *Service) StartRoomByCode(roomCode int) (bool, error) {
+	s.mu.RLock()
 	room, exists := s.rooms[roomCode]
+	s.mu.RUnlock()
 	if !exists {
-		return false
+		return false, fmt.Errorf("invalid room code")
+	}
+
+	room.mu.Lock()
+	if room.Started {
+		room.mu.Unlock()
+		return false, nil
 	}
 	room.Started = true
-	return true
+
+	clients := make([]*websocket.Conn, 0, len(room.clients))
+	for c := range room.clients {
+		clients = append(clients, c)
+	}
+	room.mu.Unlock()
+
+	msg := util.Message{Header: "START", Body: ""}
+	for _, c := range clients {
+		_ = c.WriteJSON(msg)
+	}
+
+	return true, nil
 }
+
 
 // Room code is verified before this function is called.
 func (s *Service) JoinRoomLocked(roomCode int) bool {
@@ -119,13 +144,36 @@ func (s *Service) StartRoom(codeStr string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("room code not numeric")
 	}
+	return s.StartRoomByCode(code)
+}
 
-	started := s.StartRoomLocked(code)
-	if !started {
-		return false, fmt.Errorf("invalid room code")
+
+func (s *Service) RegisterConn(roomCode int, conn *websocket.Conn) (alreadyStarted bool, err error) {
+	s.mu.RLock()
+	room, exists := s.rooms[roomCode]
+	s.mu.RUnlock()
+	if !exists {
+		return false, fmt.Errorf("room not found")
 	}
 
-	return true, nil
+	room.mu.Lock()
+	room.clients[conn] = struct{}{}
+	alreadyStarted = room.Started
+	room.mu.Unlock()
 
-	return true, nil
+	return alreadyStarted, nil
 }
+
+func (s *Service) UnregisterConn(roomCode int, conn *websocket.Conn) {
+	s.mu.RLock()
+	room, exists := s.rooms[roomCode]
+	s.mu.RUnlock()
+	if !exists {
+		return
+	}
+
+	room.mu.Lock()
+	delete(room.clients, conn)
+	room.mu.Unlock()
+}
+
