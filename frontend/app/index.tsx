@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import { getRoomCode, verifyRoomCode } from "../services/api/room";
+import { getRoomCode, joinRoom, startRoom } from "../services/api/http";
 
 const sleep = (ms: number) =>
   new Promise<void>(resolve => setTimeout(resolve, ms));

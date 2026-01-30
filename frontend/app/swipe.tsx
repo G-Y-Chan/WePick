@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -33,6 +33,15 @@ export default function Swipe() {
   );
 
   const [index, setIndex] = useState(0);
+  const indexRef = useRef(index);
+  useEffect(() => {
+    indexRef.current = index;
+  }, [index]);
+
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
   const position = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   const swipeThreshold = width * SWIPE_THRESHOLD_RATIO;
@@ -71,7 +80,18 @@ export default function Swipe() {
     }).start();
   }
 
-  function forceSwipe(direction: "left" | "right") {
+  const onSwipeComplete = useCallback((direction: "left" | "right") => {
+    const i = indexRef.current;            // ✅ latest index
+    const swipedCard = dataRef.current[i]; // ✅ latest data
+
+    if (direction === "right") console.log("ACCEPT", swipedCard);
+    else console.log("REJECT", swipedCard);
+
+    position.setValue({ x: 0, y: 0 });
+    setIndex((prev) => prev + 1);
+  }, [position]);
+
+  const forceSwipe = useCallback((direction: "left" | "right") => {
     const x = direction === "right" ? width * 1.2 : -width * 1.2;
 
     Animated.timing(position, {
@@ -79,17 +99,7 @@ export default function Swipe() {
       duration: SWIPE_OUT_DURATION_MS,
       useNativeDriver: false,
     }).start(() => onSwipeComplete(direction));
-  }
-
-  function onSwipeComplete(direction: "left" | "right") {
-    const swipedCard = data[index];
-    // handle accept/reject here
-    if (direction === "right") console.log("ACCEPT", swipedCard);
-    else console.log("REJECT", swipedCard);
-
-    position.setValue({ x: 0, y: 0 });
-    setIndex((prev) => prev + 1);
-  }
+  }, [width, position, onSwipeComplete]);
 
   const panResponder = useRef(
     PanResponder.create({
