@@ -1,9 +1,5 @@
 import { api } from "./client";
-
-export type Message = {
-  Header: string;
-  Body: string;
-};
+import { Message } from "../types"
 
 export async function getRoomCode(): Promise<string> {
   const res = await api.get<Message>("/get-room-code");

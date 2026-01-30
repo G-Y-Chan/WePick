@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import { joinRoom } from "../services/api/room";
+import { joinRoom } from "../services/api/http";
 
 export default function Index() {
   const [error, setError] = useState<string | null>(null);
