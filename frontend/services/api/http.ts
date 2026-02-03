@@ -8,10 +8,10 @@ export async function getRoomCode(): Promise<string> {
 
 export async function joinRoom(roomCode: number): Promise<string> {
   const res = await api.post<Message>("/join-room", roomCode.toString());
-  return res.Body;
+  return res.Body.toLowerCase();
 }
 
 export async function startRoom(roomCode: string): Promise<string> {
   const res = await api.post<Message>("/start-room", roomCode);
-  return res.Body;
+  return res.Body.toLowerCase();
 }

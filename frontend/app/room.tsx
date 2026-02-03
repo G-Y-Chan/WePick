@@ -65,7 +65,7 @@ export default function Room() {
   const handleStartRoom = async () => {
     try {
       const response = await startRoom(stringCode);
-      const status = response.toLowerCase() === "true"; // keep if startRoom returns string
+      const status = response === "true";
       if (status) {
         router.push({ pathname: "/swipe" });
       } else {
