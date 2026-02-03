@@ -23,7 +23,7 @@ export default function Index() {
       const response = await joinRoom(roomCode);
       console.log("Trying to join room: ", roomCode);
       console.log("Response from joining: ", response);
-      const status: boolean = response.toLowerCase() === 'true';
+      const status: boolean = response === 'true';
       setLoading(false);
       if (status) {
         router.push({
