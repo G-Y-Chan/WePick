@@ -105,7 +105,7 @@ func (s *Service) StartRoomByCode(roomCode int) (bool, error) {
 	}
 	room.mu.Unlock()
 
-	msg := util.Message{Header: "START", Body: ""}
+	msg := util.Message{Header: "START"}
 	for _, c := range clients {
 		_ = c.WriteJSON(msg)
 	}

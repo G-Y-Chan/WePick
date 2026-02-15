@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strconv"
 	"github.com/gorilla/websocket"
+	"fmt"
+	"backend/util"
 )
 
 var upgrader = websocket.Upgrader{
@@ -29,26 +31,31 @@ func (srv *Server) HandleRoomWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	started, err := srv.RoomService.RegisterConn(roomCode, conn)
+	_, err = srv.RoomService.RegisterConn(roomCode, conn)
 	if err != nil {
 		_ = conn.WriteJSON(map[string]any{"type":"ERROR","message": err.Error()})
 		_ = conn.Close()
 		return
 	}
 
-	_ = conn.WriteJSON(map[string]any{"type":"JOINED"})
-
-	// If room already started, tell them immediately
-	if started {
-		_ = conn.WriteJSON(map[string]any{"type":"START"})
-	}
-
 	// Keep alive; when client disconnects, unregister
 	for {
-		if _, _, err := conn.ReadMessage(); err != nil {
+		var msg util.Message
+		if err := conn.ReadJSON(&msg); err != nil {
 			srv.RoomService.UnregisterConn(roomCode, conn)
 			_ = conn.Close()
 			return
+		}
+
+		switch msg.Header {
+		case "VOTE_EVENT":
+			if msg.VoteObj != nil {
+				fmt.Printf("Vote received:\n")
+				fmt.Printf("  ID: %s\n", msg.VoteObj.Id)
+				fmt.Printf("  Result: %s\n", msg.VoteObj.Result)
+			} else {
+				fmt.Printf("Empty vote object received.\n")
+			}
 		}
 	}
 }

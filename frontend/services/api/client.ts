@@ -11,12 +11,13 @@ export const WS_BASE_URL = wsBaseUrlFromHttp(API_BASE_URL);
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   try {
     const res = await fetch(`${API_BASE_URL}${path}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-      },
-      ...options,
-    });
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+      ...(options.headers || {}),
+    },
+  });
 
     const text = await res.text(); // Read raw text first
 

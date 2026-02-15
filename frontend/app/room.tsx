@@ -29,7 +29,9 @@ export default function Room() {
       onMessage: (msg) => {
         if (msg.Header === "START") {
           conn.close();
-          router.push({ pathname: "/swipe" });
+          router.push({ 
+            pathname: "/swipe",
+            params: { roomCode: stringCode } });
           return;
         }
 

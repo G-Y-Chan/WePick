@@ -1,10 +1,13 @@
 package main
 
 import (
-    "net/http"
-	"backend/room"
-	"backend/middleware"
+	"net/http"
+	"strings"
+
 	"backend/handlers"
+	"backend/room"
+
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -13,18 +16,37 @@ func main() {
 		RoomService: roomService,
 	}
 
+	// Register routes on a ServeMux (instead of using the global DefaultServeMux directly)
+	mux := http.NewServeMux()
+
 	// Test endpoints
-	http.HandleFunc("/test", middleware.WithCORS(s.Test))
-	http.HandleFunc("/headers", middleware.WithCORS(s.Headers))
-	http.HandleFunc("/post-email", middleware.WithCORS(s.PostEmail))
+	mux.HandleFunc("/test", s.Test)
+	mux.HandleFunc("/headers", s.Headers)
+	mux.HandleFunc("/post-email", s.PostEmail)
 
 	// Actual endpoints
-	http.HandleFunc("/get-room-code", middleware.WithCORS(s.GetRoomCode))
-	http.HandleFunc("/join-room", middleware.WithCORS(s.HandleRoomJoin))
-	http.HandleFunc("/start-room", middleware.WithCORS(s.HandleRoomStart))
+	mux.HandleFunc("/get-room-code", s.GetRoomCode)
+	mux.HandleFunc("/join-room", s.HandleRoomJoin)
+	mux.HandleFunc("/start-room", s.HandleRoomStart)
 
-	// WebSocket endpoint
-	http.HandleFunc("/ws", s.HandleRoomWS)
+	// WebSocket endpoint (CORS isn’t enforced the same way for WS, but it’s fine to wrap anyway)
+	mux.HandleFunc("/ws", s.HandleRoomWS)
 
-	http.ListenAndServe(":8090", nil)
+	// Global CORS middleware
+	c := cors.New(cors.Options{
+		AllowOriginFunc: func(origin string) bool {
+			return origin == "http://localhost:8081" ||
+				origin == "http://localhost:19006" ||
+				strings.HasSuffix(origin, ".exp.direct") ||
+				strings.HasSuffix(origin, ".expo.dev") ||
+				strings.HasSuffix(origin, ".ngrok-free.app")
+		},
+		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders: []string{"Content-Type", "Authorization"},
+		// AllowCredentials: true, // only if you use cookies / credentials
+	})
+
+	handler := c.Handler(mux)
+
+	_ = http.ListenAndServe(":8090", handler)
 }

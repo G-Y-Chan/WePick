@@ -4,9 +4,14 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Card, SwipeDirection } from "../../src/swipe/types";
 import { useSwipeDeck } from "../../src/swipe/useSwipeDeck";
 import { SwipeDeck } from "../../src/swipe/SwipeDeck";
+import { useLocalSearchParams } from "expo-router";
+import { useRoomWS } from "@/services/ws";
+import { Message } from "@/services/types";
 
 export default function SwipeScreen() {
   const { width, height } = useWindowDimensions();
+  const { roomCode } = useLocalSearchParams<{ roomCode: string }>();
+  const ws = useRoomWS(roomCode);
 
   const data = useMemo<Card[]>(
     () =>
@@ -19,11 +24,16 @@ export default function SwipeScreen() {
   );
 
   const handleSwipe = useCallback((card: Card, direction: SwipeDirection) => {
-    // TODAY: console log
-    console.log(direction === "right" ? "ACCEPT" : "REJECT", card);
-
-    // LATER: send vote event (websocket)
-    // voteClient.sendVote({ roomId, cardId: card.id, direction, ts: Date.now() })
+    let result = direction === "right" ? "ACCEPT" : "REJECT"
+    console.log(result, card);
+    let voteEventMessage: Message = {
+      Header: "VOTE_EVENT",
+      VoteObj: {
+        Id: card.id,
+        Result: result
+      }
+    }
+    ws.send(voteEventMessage);
   }, []);
 
   const deck = useSwipeDeck({ data, width, onSwipe: handleSwipe });
