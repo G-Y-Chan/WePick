@@ -34,7 +34,7 @@ export default function SwipeScreen() {
       }
     }
     ws.send(voteEventMessage);
-  }, []);
+  }, [ws]);
 
   const deck = useSwipeDeck({ data, width, onSwipe: handleSwipe });
 

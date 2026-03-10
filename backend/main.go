@@ -2,7 +2,7 @@ package main
 
 import (
 	"net/http"
-	"strings"
+	
 
 	"backend/handlers"
 	"backend/room"
@@ -35,11 +35,14 @@ func main() {
 	// Global CORS middleware
 	c := cors.New(cors.Options{
 		AllowOriginFunc: func(origin string) bool {
+			return true
+			/*
 			return origin == "http://localhost:8081" ||
 				origin == "http://localhost:19006" ||
 				strings.HasSuffix(origin, ".exp.direct") ||
 				strings.HasSuffix(origin, ".expo.dev") ||
 				strings.HasSuffix(origin, ".ngrok-free.app")
+			*/
 		},
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders: []string{"Content-Type", "Authorization"},

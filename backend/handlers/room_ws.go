@@ -56,6 +56,8 @@ func (srv *Server) HandleRoomWS(w http.ResponseWriter, r *http.Request) {
 			} else {
 				fmt.Printf("Empty vote object received.\n")
 			}
+		default:
+			fmt.Println("Wrong header")
 		}
 	}
 }
