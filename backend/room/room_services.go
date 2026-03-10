@@ -60,7 +60,6 @@ func (s *Service) generateRoomCodeLocked() int {
 			break
 		}
 	}
-	s.max = s.max - 1
 	return code
 }
 
