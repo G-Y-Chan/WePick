@@ -12,7 +12,11 @@ func (s *Server) Test(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
     // Set the HTTP status code (optional, http.StatusOK is 200).
 	w.WriteHeader(http.StatusOK)
-	m := util.Message{"testing", "This is a placeholder body."}
+	testMessage := "This is a placeholder body."
+	m := util.Message{
+		Header: "testing", 
+		Body: &testMessage,
+	}
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

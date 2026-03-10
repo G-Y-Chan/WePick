@@ -15,7 +15,10 @@ func (s *Server) GetRoomCode(w http.ResponseWriter, req *http.Request) {
     // Set the HTTP status code (optional, http.StatusOK is 200).
 	w.WriteHeader(http.StatusOK)
 	var code = s.RoomService.GenerateCode()
-	m := util.Message{"Room Code", code}
+	m := util.Message{
+		Header: "Room Code", 
+		Body: &code,
+	}
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -55,7 +58,11 @@ func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	m := util.Message{"Join Status", strconv.FormatBool(joined)}
+	strJoined := strconv.FormatBool(joined)
+	m := util.Message{
+		Header: "Join Status", 
+		Body: &strJoined,
+	}
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -84,7 +91,11 @@ func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	m := util.Message{"Start Status", strconv.FormatBool(started)}
+	strStarted := strconv.FormatBool(started)
+	m := util.Message{
+		Header: "Start Status", 
+		Body: &strStarted,
+	}
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
