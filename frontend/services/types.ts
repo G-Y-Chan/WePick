@@ -1,7 +1,10 @@
+import { Card } from "@/src/swipe/types";
+
 export type Message = {
   Header: string;
   Body?: string;
   VoteObj?: Vote
+  Cards?: Card[]
 };
 
 type Vote = {

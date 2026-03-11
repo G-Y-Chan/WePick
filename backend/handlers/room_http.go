@@ -118,3 +118,69 @@ func parseRoomCode(req *http.Request) (string, error) {
 
 	return roomCode, nil
 }
+
+func (s *Server) HandleGetCardData(w http.ResponseWriter, req *http.Request) {
+	cards := []util.Card{
+		{
+			ID: "1",
+			Title: "Sushi Express",
+			Description: "Affordable conveyor-belt sushi chain popular for $2++ plates and a wide variety of Japanese dishes.",
+		},
+		{
+			ID: "2",
+			Title: "Eighteen Chefs",
+			Description: "Casual Western-fusion restaurant famous for its 'Heart Attack Fried Rice' and hearty mains.",
+		},
+		{
+			ID: "3",
+			Title: "Seoul Garden",
+			Description: "Korean BBQ buffet restaurant offering grill-it-yourself meats and hotpot options.",
+		},
+		{
+			ID: "4",
+			Title: "Ichiban Sushi",
+			Description: "Family-friendly Japanese restaurant serving sushi, ramen, donburi and bento sets.",
+		},
+		{
+			ID: "5",
+			Title: "Swensen's",
+			Description: "Classic Western restaurant known for fish & chips, burgers and ice cream desserts.",
+		},
+		{
+			ID: "6",
+			Title: "Pho Vietnam",
+			Description: "Vietnamese restaurant serving pho noodle soups, banh mi and other traditional dishes.",
+		},
+		{
+			ID: "7",
+			Title: "Yakiniku Like",
+			Description: "Japanese solo BBQ restaurant where diners grill individual meat sets quickly at their table.",
+		},
+		{
+			ID: "8",
+			Title: "Soup Restaurant",
+			Description: "Singapore brand famous for its Samsui Ginger Chicken and traditional Chinese home-style dishes.",
+		},
+		{
+			ID: "9",
+			Title: "Kenny Rogers Roasters Express",
+			Description: "Western chain known for roasted chicken, ribs, and hearty comfort-food sides.",
+		},
+		{
+			ID: "10",
+			Title: "Munchi Pancakes",
+			Description: "Local snack stall selling traditional min jiang kueh pancakes with sweet fillings.",
+		},
+	}
+
+	m := util.Message{
+		Header: "CARD_DATA",
+		Cards:  cards,
+	}
+
+	if err := json.NewEncoder(w).Encode(m); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+	

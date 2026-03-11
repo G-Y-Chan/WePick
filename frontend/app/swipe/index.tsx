@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Card, SwipeDirection } from "../../src/swipe/types";
@@ -7,21 +7,29 @@ import { SwipeDeck } from "../../src/swipe/SwipeDeck";
 import { useLocalSearchParams } from "expo-router";
 import { useRoomWS } from "@/services/ws";
 import { Message } from "@/services/types";
+import { getCardData } from "@/services/api/http";
 
 export default function SwipeScreen() {
+  const [data, setData] = useState<Card[]>([]);
   const { width, height } = useWindowDimensions();
   const { roomCode } = useLocalSearchParams<{ roomCode: string }>();
   const ws = useRoomWS(roomCode);
 
-  const data = useMemo<Card[]>(
-    () =>
-      Array.from({ length: 10 }, (_, i) => ({
-        id: String(i + 1),
-        title: `Place ${i + 1}`,
-        description: "Placeholder description. Swipe right to accept, left to reject.",
-      })),
-    []
-  );
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const location = "PLACEHOLDER_LOCATION";
+      const res = await getCardData(location);
+      if (!cancelled) setData(res || []);
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSwipe = useCallback((card: Card, direction: SwipeDirection) => {
     let result = direction === "right" ? "ACCEPT" : "REJECT"
