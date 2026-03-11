@@ -28,6 +28,7 @@ func main() {
 	mux.HandleFunc("/get-room-code", s.GetRoomCode)
 	mux.HandleFunc("/join-room", s.HandleRoomJoin)
 	mux.HandleFunc("/start-room", s.HandleRoomStart)
+	mux.HandleFunc("/get-card-data", s.HandleGetCardData)
 
 	// WebSocket endpoint (CORS isn’t enforced the same way for WS, but it’s fine to wrap anyway)
 	mux.HandleFunc("/ws", s.HandleRoomWS)
