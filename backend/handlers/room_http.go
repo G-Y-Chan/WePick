@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"io"
 )
 
 func (s *Server) GetRoomCode(w http.ResponseWriter, req *http.Request) {
@@ -72,6 +73,12 @@ func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(w, "failed to read request body", http.StatusBadRequest)
+		return
+	}
+	fmt.Printf("Raw request body: %s\n", string(bodyBytes))
 	roomCode, err := parseRoomCode(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -106,16 +113,20 @@ func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 
 func parseRoomCode(req *http.Request) (string, error) {
 	defer req.Body.Close()
-
+	fmt.Printf("Inside parseRoomCode...\n")
+	//fmt.Printf("Parsing room code from request body...\n")
+	//fmt.Printf("Request headers: %v\n", req.Header)
+	//fmt.Printf("Raw request body: %v\n", req.Body)
 	var roomCode string
 	if err := json.NewDecoder(req.Body).Decode(&roomCode); err != nil {
+		fmt.Printf("Error decoding room code: %v\n", err)
 		return "", err
 	}
 
 	if roomCode == "" {
 		return "", errors.New("empty room code")
 	}
-
+	fmt.Printf("Received room code: %s\n", roomCode)
 	return roomCode, nil
 }
 

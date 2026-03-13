@@ -13,6 +13,7 @@ export async function joinRoom(roomCode: number): Promise<string | undefined> {
 }
 
 export async function startRoom(roomCode: string): Promise<string | undefined> {
+  console.log(`Attempting to start room: ${roomCode}`);
   const res = await api.post<Message>("/start-room", roomCode);
   return res.Body?.toLowerCase();
 }

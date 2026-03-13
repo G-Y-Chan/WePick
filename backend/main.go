@@ -46,7 +46,8 @@ func main() {
 			*/
 		},
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders: []string{"Content-Type", "Authorization"},
+		// AllowedHeaders: []string{"Content-Type", "Authorization"},
+		AllowedHeaders: []string{"*"},
 		// AllowCredentials: true, // only if you use cookies / credentials
 	})
 
