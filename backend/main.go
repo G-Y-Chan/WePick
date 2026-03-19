@@ -11,9 +11,9 @@ import (
 )
 
 func main() {
-	roomService := room.NewService(1_000_000)
+	roomManager := room.NewRoomManager(1_000_000)
 	s := &handlers.Server{
-		RoomService: roomService,
+		RoomManager: roomManager,
 	}
 
 	// Register routes on a ServeMux (instead of using the global DefaultServeMux directly)
