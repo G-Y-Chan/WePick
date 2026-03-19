@@ -8,6 +8,7 @@ export default function RootLayout() {
       <Stack.Screen name="error" options={{ presentation: "modal", headerShown: false }} />
       <Stack.Screen name="join" options={{ title: "Join Room" }} />
       <Stack.Screen name="swipe/index" options={{ title: "Placeholder" }} />
+      <Stack.Screen name="results" options={{ title: "Results" }} />
     </Stack>
   );
 }
