@@ -10,15 +10,20 @@ import (
 )
 
 func (s *Server) GetRoomCode(w http.ResponseWriter, req *http.Request) {
-	// Inform client that the response type is JSON
-	w.Header().Set("Content-Type", "application/json")
-    // Set the HTTP status code (optional, http.StatusOK is 200).
-	w.WriteHeader(http.StatusOK)
-	var code = s.RoomManager.AddRoom()
-	m := util.Message{
-		Header: "Room Code", 
-		Body: &code,
+	code, err := s.RoomManager.AddRoom()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	m := util.Message{
+		Header: "Room Code",
+		Body:   &code,
+	}
+
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

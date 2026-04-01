@@ -5,125 +5,114 @@ import (
 	"math/rand"
 	"sync"
 	"github.com/gorilla/websocket"
-	"backend/util"
 )
 
 type RoomManager struct {
-	mu        sync.RWMutex
-	rooms     map[string]*Room
-	max       int
+	mu        		sync.RWMutex
+	roomRepository 	*RoomRepository
+	rooms 			map[string]*RoomConnections
+	max       		int
 }
 
 func NewRoomManager(max int) *RoomManager {
 	return &RoomManager{
-		rooms: make(map[string]*Room),
+		roomRepository: NewRoomRepository(),
+		rooms: make(map[string]*RoomConnections),
 		max: max,
 	}
 }
 
-func (rm *RoomManager) GenerateRoomCodeLocked() string {
-	// need to handle the case where all possible codes are taken
-	var code string
+func (rm *RoomManager) GenerateRoomCode() string {
+	return fmt.Sprintf("%06d", rand.Intn(rm.max))
+}
 
-	for true {
-		code = fmt.Sprintf("%06d", rand.Intn(rm.max))
-		_, exists := rm.rooms[code]
-		if !exists {
-			break
+func (rm *RoomManager) AddRoom() (string, error) {
+	for {
+		code := rm.GenerateRoomCode()
+
+		roomCreated, err := rm.roomRepository.CreateRoom(code)
+		if err != nil {
+			return "", err
 		}
+
+		if roomCreated {
+			return code, nil
+		}
+
+		// else: collision → try again
 	}
-
-	return code
-}
-
-func (rm *RoomManager) CreateRoom(code string) *Room {
-	return &Room{
-		Code: code,
-		Started: false,
-		clients: make(map[*websocket.Conn]struct{}),
-	}
-}
-
-func (rm *RoomManager) AddRoom() string {
-	rm.mu.Lock()
-	defer rm.mu.Unlock()
-	code := rm.GenerateRoomCodeLocked()
-	room := rm.CreateRoom(code)
-	rm.rooms[code] = room
-	return code
 }
 
 func (rm *RoomManager) StartRoom(code string) (bool, error) {
-	rm.mu.RLock()
-	room, exists := rm.rooms[code]
-	rm.mu.RUnlock()
-	if !exists {
-		return false, fmt.Errorf("invalid room code")
-	}
+	// rm.mu.RLock()
+	// room, exists := rm.rooms[code]
+	// rm.mu.RUnlock()
+	// if !exists {
+	// 	return false, fmt.Errorf("invalid room code")
+	// }
 
-	room.mu.Lock()
-	if room.Started {
-		room.mu.Unlock()
-		return false, nil
-	}
-	room.Started = true
+	// room.mu.Lock()
+	// if room.Started {
+	// 	room.mu.Unlock()
+	// 	return false, nil
+	// }
+	// room.Started = true
 
-	clients := make([]*websocket.Conn, 0, len(room.clients))
-	for c := range room.clients {
-		clients = append(clients, c)
-	}
-	room.mu.Unlock()
+	// clients := make([]*websocket.Conn, 0, len(room.clients))
+	// for c := range room.clients {
+	// 	clients = append(clients, c)
+	// }
+	// room.mu.Unlock()
 
-	msg := util.Message{Header: "START"}
-	for _, c := range clients {
-		_ = c.WriteJSON(msg)
-	}
+	// msg := util.Message{Header: "START"}
+	// for _, c := range clients {
+	// 	_ = c.WriteJSON(msg)
+	// }
 
 	return true, nil
 }
 
 func (rm *RoomManager) ValidateRoomJoin(code string) (bool, error) {
-	rm.mu.Lock()
-	defer rm.mu.Unlock()
-
-	rm.mu.RLock()
-	room, exists := rm.rooms[code]
-	rm.mu.RUnlock()
-	if !exists {
-		return false, fmt.Errorf("invalid room code")
+	started, err := rm.roomRepository.CheckIfRoomStarted(code)
+	if err != nil {
+		return false, err
 	}
-
-	if room.Started {
+	if started {
 		return false, nil
 	}
 
 	return true, nil
 }
 
-func (rm *RoomManager) RegisterConn(roomCode string, conn *websocket.Conn) (err error) {
-	rm.mu.RLock()
-	room, exists := rm.rooms[roomCode]
-	rm.mu.RUnlock()
+func (rm *RoomManager) RegisterConn(code string, conn *websocket.Conn) error {
+	exists, err := rm.roomRepository.CheckIfRoomExists(code)
+	if err != nil {
+		return err
+	}
 	if !exists {
 		return fmt.Errorf("room not found")
 	}
 
-	room.mu.Lock()
-	room.clients[conn] = struct{}{}
-	room.mu.Unlock()
+	rm.mu.Lock()
+	roomConnections, exists := rm.rooms[code]
+	if !exists {
+		roomConnections = NewRoomConnections()
+		rm.rooms[code] = roomConnections
+	}
+	rm.mu.Unlock()
 
+	roomConnections.Add(conn)
 	return nil
 }
 
-func (rm *RoomManager) UnregisterConn(roomCode string, conn *websocket.Conn) {
+func (rm *RoomManager) UnregisterConn(code string, conn *websocket.Conn) {
 	rm.mu.RLock()
-	room, exists := rm.rooms[roomCode]
+	roomConnections, exists := rm.rooms[code]
 	rm.mu.RUnlock()
+
 	if !exists {
 		return
 	}
 
-	room.mu.Lock()
-	delete(room.clients, conn)
-	room.mu.Unlock()
+	roomConnections.Remove(conn)
 }
