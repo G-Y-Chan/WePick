@@ -26,6 +26,8 @@ func (s *Server) HandleRoomWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Printf("New WebSocket connection for room: %s\n", roomCode)
+
 	err = s.RoomManager.RegisterConn(roomCode, conn)
 	if err != nil {
 		_ = conn.WriteJSON(map[string]any{"type":"ERROR","message": err.Error()})

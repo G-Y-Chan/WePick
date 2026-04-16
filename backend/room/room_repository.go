@@ -5,6 +5,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"context"
 	"strconv"
+	"encoding/json"
 )
 
 type RoomRepository struct {
@@ -65,23 +66,52 @@ func (rr *RoomRepository) CheckIfRoomStarted(code string) (bool, error) {
 }
 
 
-func (rr *RoomRepository) UpdateRoomStarted(code string) error {
+func (rr *RoomRepository) StartRoom(code string) error {
+	event := RoomEvent{
+		Type: "room_started",
+		Room: code,
+	}
+
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+
 	script := `
 		if redis.call("EXISTS", KEYS[1]) == 0 then
 			return 0
 		end
 		redis.call("HSET", KEYS[1], "started", "true")
+		redis.call("PUBLISH", ARGV[1], ARGV[2])
 		return 1
 	`
 
-	res, err := rr.rdb.Eval(context.Background(), script, []string{"room:"+code}).Int()
+	res, err := rr.rdb.Eval(
+		context.Background(),
+		script,
+		[]string{"room:"+code},
+		"room_events",
+		payload,
+	).Int()
+
 	if err != nil {
 		return err
 	}
-
 	if res == 0 {
 		return fmt.Errorf("room not found")
 	}
 
 	return nil
+}
+
+func (rr *RoomRepository) SubscribeToRoomEvents() <-chan *redis.Message {
+	pubsub := rr.rdb.Subscribe(context.Background(), "room_events")
+
+	// ensure subscription is ready
+	_, err := pubsub.Receive(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	return pubsub.Channel()
 }

@@ -12,6 +12,9 @@ import (
 
 func main() {
 	roomManager := room.NewRoomManager(1_000_000)
+
+	go roomManager.StartEventListener()
+	
 	s := &handlers.Server{
 		RoomManager: roomManager,
 	}

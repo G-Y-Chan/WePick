@@ -3,6 +3,8 @@ package room
 import (
 	"sync"
 	"github.com/gorilla/websocket"
+	"backend/util"
+	"fmt"
 )
 
 type RoomConnections struct {
@@ -26,4 +28,15 @@ func (rc *RoomConnections) Remove(conn *websocket.Conn) {
     rc.mu.Lock()
     defer rc.mu.Unlock()
     delete(rc.clients, conn)
+}
+
+func (rc *RoomConnections) BroadcastRoomStarted() {
+	rc.mu.RLock()
+	defer rc.mu.RUnlock()
+
+	fmt.Println("Broadcasting room started event to", len(rc.clients), "clients")
+	msg := util.Message{Header: "START"}
+	for conn := range rc.clients {
+		conn.WriteJSON(msg)
+	}
 }
