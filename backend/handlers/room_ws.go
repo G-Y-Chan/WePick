@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 	"github.com/gorilla/websocket"
 	"fmt"
 	"backend/util"
@@ -10,19 +9,15 @@ import (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
+		// unsafe, but allows all connections. In production, you should check the origin here.
 		return true
 	},
 }
 
-func (srv *Server) HandleRoomWS(w http.ResponseWriter, r *http.Request) {
-	roomCodeStr := r.URL.Query().Get("roomCode")
-	if roomCodeStr == "" {
+func (s *Server) HandleRoomWS(w http.ResponseWriter, r *http.Request) {
+	roomCode := r.URL.Query().Get("roomCode")
+	if roomCode == "" {
 		http.Error(w, "missing roomCode", http.StatusBadRequest)
-		return
-	}
-	roomCode, err := strconv.Atoi(roomCodeStr)
-	if err != nil {
-		http.Error(w, "invalid roomCode", http.StatusBadRequest)
 		return
 	}
 
@@ -31,7 +26,7 @@ func (srv *Server) HandleRoomWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = srv.RoomService.RegisterConn(roomCode, conn)
+	err = s.RoomManager.RegisterConn(roomCode, conn)
 	if err != nil {
 		_ = conn.WriteJSON(map[string]any{"type":"ERROR","message": err.Error()})
 		_ = conn.Close()
@@ -42,7 +37,7 @@ func (srv *Server) HandleRoomWS(w http.ResponseWriter, r *http.Request) {
 	for {
 		var msg util.Message
 		if err := conn.ReadJSON(&msg); err != nil {
-			srv.RoomService.UnregisterConn(roomCode, conn)
+			s.RoomManager.UnregisterConn(roomCode, conn)
 			_ = conn.Close()
 			return
 		}

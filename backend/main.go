@@ -11,9 +11,9 @@ import (
 )
 
 func main() {
-	roomService := room.NewService(1_000_000)
+	roomManager := room.NewRoomManager(1_000_000)
 	s := &handlers.Server{
-		RoomService: roomService,
+		RoomManager: roomManager,
 	}
 
 	// Register routes on a ServeMux (instead of using the global DefaultServeMux directly)
@@ -46,7 +46,8 @@ func main() {
 			*/
 		},
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders: []string{"Content-Type", "Authorization"},
+		// AllowedHeaders: []string{"Content-Type", "Authorization"},
+		AllowedHeaders: []string{"*"},
 		// AllowCredentials: true, // only if you use cookies / credentials
 	})
 

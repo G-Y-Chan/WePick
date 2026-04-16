@@ -10,15 +10,20 @@ import (
 )
 
 func (s *Server) GetRoomCode(w http.ResponseWriter, req *http.Request) {
-	// Inform client that the response type is JSON
-	w.Header().Set("Content-Type", "application/json")
-    // Set the HTTP status code (optional, http.StatusOK is 200).
-	w.WriteHeader(http.StatusOK)
-	var code = s.RoomService.GenerateCode()
-	m := util.Message{
-		Header: "Room Code", 
-		Body: &code,
+	code, err := s.RoomManager.AddRoom()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	m := util.Message{
+		Header: "Room Code",
+		Body:   &code,
+	}
+
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -39,7 +44,7 @@ func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
 	// Inform client that the response type is JSON
 	w.Header().Set("Content-Type", "application/json")
 
-	joined, err := s.RoomService.JoinRoom(roomCode)
+	joined, err := s.RoomManager.ValidateRoomJoin(roomCode)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(util.ErrorResponse{
@@ -81,7 +86,7 @@ func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("Attempting to start room:", roomCode)
 	w.Header().Set("Content-Type", "application/json")
 
-	started, err := s.RoomService.StartRoom(roomCode)
+	started, err := s.RoomManager.StartRoom(roomCode)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(util.ErrorResponse{
@@ -106,16 +111,20 @@ func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 
 func parseRoomCode(req *http.Request) (string, error) {
 	defer req.Body.Close()
-
+	fmt.Printf("Inside parseRoomCode...\n")
+	//fmt.Printf("Parsing room code from request body...\n")
+	//fmt.Printf("Request headers: %v\n", req.Header)
+	//fmt.Printf("Raw request body: %v\n", req.Body)
 	var roomCode string
 	if err := json.NewDecoder(req.Body).Decode(&roomCode); err != nil {
+		fmt.Printf("Error decoding room code: %v\n", err)
 		return "", err
 	}
 
 	if roomCode == "" {
 		return "", errors.New("empty room code")
 	}
-
+	fmt.Printf("Received room code: %s\n", roomCode)
 	return roomCode, nil
 }
 

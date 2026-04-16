@@ -5,5 +5,5 @@ import (
 )
 
 type Server struct {
-	RoomService *room.Service
+	RoomManager *room.RoomManager
 }
