@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"sync"
 	"github.com/gorilla/websocket"
+	"encoding/json"
+	"log"
 )
 
 type RoomManager struct {
@@ -20,6 +22,40 @@ func NewRoomManager(max int) *RoomManager {
 		rooms: make(map[string]*RoomConnections),
 		max: max,
 	}
+}
+
+func (rm *RoomManager) StartEventListener() {
+	ch := rm.roomRepository.SubscribeToRoomEvents()
+
+	for msg := range ch {
+		var event RoomEvent
+
+		err := json.Unmarshal([]byte(msg.Payload), &event)
+		if err != nil {
+			log.Println("invalid event:", err)
+			continue
+		}
+
+		rm.handleEvent(event)
+	}
+}
+
+func (rm *RoomManager) handleEvent(event RoomEvent) {
+	switch event.Type {
+	case "room_started":
+		fmt.Println("Received room_started event for room:", event.Room)
+		rm.BroadcastRoomStarted(event.Room)
+	}
+}
+
+func (rm *RoomManager) BroadcastRoomStarted(code string) {
+	roomConnections, exists := rm.rooms[code]
+	if !exists {
+		fmt.Println("No active connections for room:", code)
+		return
+	}
+
+	roomConnections.BroadcastRoomStarted()
 }
 
 func (rm *RoomManager) GenerateRoomCode() string {
@@ -44,30 +80,10 @@ func (rm *RoomManager) AddRoom() (string, error) {
 }
 
 func (rm *RoomManager) StartRoom(code string) (bool, error) {
-	// rm.mu.RLock()
-	// room, exists := rm.rooms[code]
-	// rm.mu.RUnlock()
-	// if !exists {
-	// 	return false, fmt.Errorf("invalid room code")
-	// }
-
-	// room.mu.Lock()
-	// if room.Started {
-	// 	room.mu.Unlock()
-	// 	return false, nil
-	// }
-	// room.Started = true
-
-	// clients := make([]*websocket.Conn, 0, len(room.clients))
-	// for c := range room.clients {
-	// 	clients = append(clients, c)
-	// }
-	// room.mu.Unlock()
-
-	// msg := util.Message{Header: "START"}
-	// for _, c := range clients {
-	// 	_ = c.WriteJSON(msg)
-	// }
+	err := rm.roomRepository.StartRoom(code)
+	if err != nil {
+		return false, err
+	}
 
 	return true, nil
 }
