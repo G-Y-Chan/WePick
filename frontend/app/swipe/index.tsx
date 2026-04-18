@@ -4,7 +4,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Card, SwipeDirection } from "../../src/swipe/types";
 import { useSwipeDeck } from "../../src/swipe/useSwipeDeck";
 import { SwipeDeck } from "../../src/swipe/SwipeDeck";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useRoomWS } from "@/services/ws";
 import { Message } from "@/services/types";
 import { getCardData } from "@/services/api/http";
@@ -13,7 +13,24 @@ export default function SwipeScreen() {
   const [data, setData] = useState<Card[]>([]);
   const { width, height } = useWindowDimensions();
   const { roomCode } = useLocalSearchParams<{ roomCode: string }>();
-  const ws = useRoomWS(roomCode);
+  const router = useRouter();
+
+  const ws = useRoomWS(roomCode, {
+    onMessage: (msg) => {
+      if (msg.Header !== "MAJORITY_FOUND") return;
+
+      const voteID = msg.VoteObj?.Id;
+      if (!voteID) return;
+
+      router.push({
+        pathname: "/results",
+        params: {
+          Title: voteID,
+          Description: "Placeholder",
+        },
+      });
+    },
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -31,18 +48,23 @@ export default function SwipeScreen() {
     };
   }, []);
 
-  const handleSwipe = useCallback((card: Card, direction: SwipeDirection) => {
-    let result = direction === "right" ? "ACCEPT" : "REJECT"
-    console.log(result, card);
-    let voteEventMessage: Message = {
-      Header: "VOTE_EVENT",
-      VoteObj: {
-        Id: card.id,
-        Result: result
-      }
-    }
-    ws.send(voteEventMessage);
-  }, [ws]);
+  const handleSwipe = useCallback(
+    (card: Card, direction: SwipeDirection) => {
+      const result = direction === "right" ? "ACCEPT" : "REJECT";
+
+      const voteEventMessage: Message = {
+        Header: "VOTE_EVENT",
+        VoteObj: {
+          Id: card.id,
+          Result: result,
+          Room: roomCode,
+        },
+      };
+
+      ws.send(voteEventMessage);
+    },
+    [ws, roomCode]
+  );
 
   const deck = useSwipeDeck({ data, width, onSwipe: handleSwipe });
 

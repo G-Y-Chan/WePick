@@ -40,3 +40,19 @@ func (rc *RoomConnections) BroadcastRoomStarted() {
 		conn.WriteJSON(msg)
 	}
 }
+
+func (rc *RoomConnections) BroadcastMajorityFound(voteID string) {
+	rc.mu.RLock()
+	defer rc.mu.RUnlock()
+
+	fmt.Println("Broadcasting majority found event to", len(rc.clients), "clients for voteID:", voteID)
+	msg := util.Message{
+		Header: "MAJORITY_FOUND",
+		VoteObj: &util.Vote{
+			Id: voteID,
+		},
+	}
+	for conn := range rc.clients {
+		conn.WriteJSON(msg)
+	}
+}

@@ -1,10 +1,10 @@
-# Makefile at: root/Makefile
+.PHONY: dev backend frontend redis ngrok
 
+# Makefile at: root/Makefile
+ROOT := $(CURDIR)
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 BACKEND_MAIN := main.go
-
-.PHONY: dev backend frontend backend-test frontend-test
 
 ## Run only the Go backend
 backend:
@@ -14,8 +14,20 @@ backend:
 frontend:
 	cd $(FRONTEND_DIR) && npm run start
 
-## Run backend + frontend together (dev mode)
+## Run only the Redis server
+redis:
+	redis-server
+
+## Run only the ngrok tunnel
+ngrok:
+	ngrok http 8090
+
+## Run backend + frontend together + ngrok tunnel + Redis server
 dev:
-	cd $(BACKEND_DIR) && go run $(BACKEND_MAIN) &
-	cd $(FRONTEND_DIR) && npm run start
+	@osascript \
+		-e "tell application \"Terminal\" to activate" \
+		-e "tell application \"Terminal\" to do script \"cd '$(ROOT)' && redis-server\"" \
+		-e "tell application \"Terminal\" to do script \"for i in {1..30}; do redis-cli ping >/dev/null 2>&1 && break; sleep 1; done; cd '$(ROOT)/backend' && go run .\"" \
+		-e "tell application \"Terminal\" to do script \"cd '$(ROOT)/frontend' && npm run start\"" \
+		-e "tell application \"Terminal\" to do script \"cd '$(ROOT)' && ngrok http 8090\""
 
