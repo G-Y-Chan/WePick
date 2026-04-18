@@ -10,4 +10,5 @@ export type Message = {
 type Vote = {
   Id: string;
   Result: string; //"ACCEPT" or "REJECT"
+  Room: string;
 }

@@ -50,6 +50,14 @@ func (s *Server) HandleRoomWS(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("Vote received:\n")
 				fmt.Printf("  ID: %s\n", msg.VoteObj.Id)
 				fmt.Printf("  Result: %s\n", msg.VoteObj.Result)
+				fmt.Printf("  Room: %s\n", msg.VoteObj.Room)
+
+				if err := s.RoomManager.HandleVote(r.Context(), *msg.VoteObj); err != nil {
+					_ = conn.WriteJSON(map[string]string{
+						"error": err.Error(),
+					})
+					continue
+				}
 			} else {
 				fmt.Printf("Empty vote object received.\n")
 			}

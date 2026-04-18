@@ -3,6 +3,7 @@ package util
 type Vote struct {
 	Id     string
 	Result string
+	Room   string
 }
 
 type Card struct {

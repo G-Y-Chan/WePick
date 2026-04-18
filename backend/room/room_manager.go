@@ -7,6 +7,9 @@ import (
 	"github.com/gorilla/websocket"
 	"encoding/json"
 	"log"
+	"context"
+	"backend/util"
+	"strings"
 )
 
 type RoomManager struct {
@@ -22,6 +25,42 @@ func NewRoomManager(max int) *RoomManager {
 		rooms: make(map[string]*RoomConnections),
 		max: max,
 	}
+}
+
+func (rm *RoomManager) HandleVote(ctx context.Context, vote util.Vote) error {
+	if vote.Room == "" {
+		return fmt.Errorf("room is required")
+	}
+	if vote.Id == "" {
+		return fmt.Errorf("vote id is required")
+	}
+
+	// only count ACCEPT votes
+	if strings.ToUpper(vote.Result) != "ACCEPT" {
+		return nil
+	}
+
+	// optional: validate room exists in memory
+	rm.mu.RLock()
+	roomConnections, exists := rm.rooms[vote.Room]
+	clients := roomConnections.clients
+	numClients := len(clients)
+	rm.mu.RUnlock()
+
+	if !exists {
+		return fmt.Errorf("room %s not found", vote.Room)
+	}
+
+	majorityFound, err := rm.roomRepository.IncrementAcceptVote(ctx, vote.Room, vote.Id, numClients)
+	if err != nil {
+		return err
+	}
+
+	if majorityFound {
+		rm.roomRepository.PublishMajorityFound(ctx, vote.Room, vote.Id)
+	}
+
+	return nil
 }
 
 func (rm *RoomManager) StartEventListener() {
@@ -42,9 +81,12 @@ func (rm *RoomManager) StartEventListener() {
 
 func (rm *RoomManager) handleEvent(event RoomEvent) {
 	switch event.Type {
-	case "room_started":
-		fmt.Println("Received room_started event for room:", event.Room)
-		rm.BroadcastRoomStarted(event.Room)
+		case "room_started":
+			fmt.Println("Received room_started event for room:", event.Room)
+			rm.BroadcastRoomStarted(event.Room)
+		case "majority_found":
+			fmt.Println("Received majority_found event for room:", event.Room, "voteID:", event.VoteID)
+			rm.BroadcastMajorityFound(event.Room, event.VoteID)
 	}
 }
 
@@ -56,6 +98,19 @@ func (rm *RoomManager) BroadcastRoomStarted(code string) {
 	}
 
 	roomConnections.BroadcastRoomStarted()
+}
+
+func (rm *RoomManager) BroadcastMajorityFound(code string, voteID string) {
+	rm.mu.RLock()
+	roomConnections, exists := rm.rooms[code]
+	rm.mu.RUnlock()
+
+	if !exists {
+		fmt.Println("No active connections for room:", code)
+		return
+	}
+
+	roomConnections.BroadcastMajorityFound(voteID)
 }
 
 func (rm *RoomManager) GenerateRoomCode() string {
