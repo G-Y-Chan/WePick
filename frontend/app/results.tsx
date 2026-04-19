@@ -2,16 +2,17 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { usePlaces } from "@/src/context/places-context";
 
 export default function ResultsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    Title?: string;
-    Description?: string;
-  }>();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { getPlaceById } = usePlaces();
 
-  const title = params.Title ?? "No result selected";
-  const description = params.Description ?? "There is no winning card yet.";
+  const place = id ? getPlaceById(id) : undefined;
+
+  const title = place?.title ?? "No result selected";
+  const description = place?.description ?? "There is no winning card yet.";
 
   return (
     <SafeAreaProvider style={styles.safeArea}>
@@ -23,7 +24,9 @@ export default function ResultsScreen() {
           <Text style={styles.description}>{description}</Text>
 
           <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>Winning Card Image</Text>
+            <Text style={styles.imagePlaceholderText}>
+              {place ? "Winning Card Image" : "Result not found in cache"}
+            </Text>
           </View>
         </View>
 
