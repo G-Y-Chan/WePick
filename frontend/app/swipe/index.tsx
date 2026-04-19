@@ -8,12 +8,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useRoomWS } from "@/services/ws";
 import { Message } from "@/services/types";
 import { getCardData } from "@/services/api/http";
+import { usePlaces } from "@/src/context/places-context";
 
 export default function SwipeScreen() {
   const [data, setData] = useState<Card[]>([]);
   const { width, height } = useWindowDimensions();
   const { roomCode } = useLocalSearchParams<{ roomCode: string }>();
   const router = useRouter();
+  const { setPlaces } = usePlaces();
 
   const ws = useRoomWS(roomCode, {
     onMessage: (msg) => {
@@ -24,10 +26,7 @@ export default function SwipeScreen() {
 
       router.push({
         pathname: "/results",
-        params: {
-          Title: voteID,
-          Description: "Placeholder",
-        },
+        params: { id: voteID },
       });
     },
   });
@@ -36,9 +35,15 @@ export default function SwipeScreen() {
     let cancelled = false;
 
     async function load() {
+      console.log("load effect ran");
       const location = "PLACEHOLDER_LOCATION";
       const res = await getCardData(location);
-      if (!cancelled) setData(res || []);
+
+      if (!cancelled) {
+        const cards = res || [];
+        setData(cards);
+        setPlaces(cards);
+      }
     }
 
     load();
@@ -46,25 +51,22 @@ export default function SwipeScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [setPlaces]);
 
-  const handleSwipe = useCallback(
-    (card: Card, direction: SwipeDirection) => {
-      const result = direction === "right" ? "ACCEPT" : "REJECT";
+  const handleSwipe = useCallback((card: Card, direction: SwipeDirection) => {
+    const result = direction === "right" ? "ACCEPT" : "REJECT";
 
-      const voteEventMessage: Message = {
-        Header: "VOTE_EVENT",
-        VoteObj: {
-          Id: card.id,
-          Result: result,
-          Room: roomCode,
-        },
-      };
+    const voteEventMessage: Message = {
+      Header: "VOTE_EVENT",
+      VoteObj: {
+        Id: card.id,
+        Result: result,
+        Room: roomCode,
+      }
+    };
 
-      ws.send(voteEventMessage);
-    },
-    [ws, roomCode]
-  );
+    ws.send(voteEventMessage);
+  }, [ws, roomCode]);
 
   const deck = useSwipeDeck({ data, width, onSwipe: handleSwipe });
 
