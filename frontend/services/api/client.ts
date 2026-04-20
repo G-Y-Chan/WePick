@@ -1,5 +1,5 @@
 // Go server endpoint
-const API_BASE_URL = "https://interdependable-fillingly-lauran.ngrok-free.dev";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:8090";
 
 export function wsBaseUrlFromHttp(httpBase: string) {
   // http:// -> ws://, https:// -> wss://
