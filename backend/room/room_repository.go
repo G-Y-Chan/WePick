@@ -14,14 +14,9 @@ type RoomRepository struct {
 	rdb *redis.Client
 }
 
-func NewRoomRepository() *RoomRepository {
+func NewRoomRepository(rdb *redis.Client) *RoomRepository {
 	return &RoomRepository{
-		rdb: redis.NewClient(&redis.Options{
-			Addr:     "localhost:6379",
-			Password: "", // no password
-			DB:       0,  // use default DB
-			Protocol: 2,
-		}),
+		rdb: rdb,
 	}
 }
 

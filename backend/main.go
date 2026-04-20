@@ -2,16 +2,23 @@ package main
 
 import (
 	"net/http"
-	
-
 	"backend/handlers"
 	"backend/room"
-
+	"backend/infra"
+	"backend/config"
 	"github.com/rs/cors"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	roomManager := room.NewRoomManager(1_000_000)
+	// Load environment variables
+	_ = godotenv.Load()
+
+	// Initialize Redis client and repositories
+	cfg := config.LoadEnv()
+	rdb := infra.NewRedisClient(cfg.Redis)
+	roomRepo := room.NewRoomRepository(rdb)
+	roomManager := room.NewRoomManager(1_000_000, roomRepo)
 
 	go roomManager.StartEventListener()
 	
@@ -56,5 +63,7 @@ func main() {
 
 	handler := c.Handler(mux)
 
-	_ = http.ListenAndServe(":8090", handler)
+	addr := ":" + cfg.Port
+
+	_ = http.ListenAndServe(addr, handler)
 }

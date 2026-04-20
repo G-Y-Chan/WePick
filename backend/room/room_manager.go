@@ -19,9 +19,9 @@ type RoomManager struct {
 	max       		int
 }
 
-func NewRoomManager(max int) *RoomManager {
+func NewRoomManager(max int, roomRepository *RoomRepository) *RoomManager {
 	return &RoomManager{
-		roomRepository: NewRoomRepository(),
+		roomRepository: roomRepository,
 		rooms: make(map[string]*RoomConnections),
 		max: max,
 	}
