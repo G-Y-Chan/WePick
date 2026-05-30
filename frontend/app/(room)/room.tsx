@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Button, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -7,16 +7,12 @@ import { startRoom } from "../../services/api/http";
 import { useRoom } from "@/src/context/room-context";
 
 export default function Room() {
-  const { roomCode, host } = useLocalSearchParams();
-
+  // Only grab 'host' from params; the room code is managed by the Layout/Context
+  const { host } = useLocalSearchParams();
   const isHost = host === "true";
 
-  const stringCode = useMemo(() => {
-    if (Array.isArray(roomCode)) return roomCode.join("");
-    return String(roomCode ?? "");
-  }, [roomCode]);
-
-  const { status, lastMessage } = useRoom();
+  // Pull the already-parsed roomCode from Context
+  const { status, lastMessage, roomCode } = useRoom();
 
   const [isStarting, setIsStarting] = useState(false);
 
@@ -24,11 +20,8 @@ export default function Room() {
     if (!lastMessage) return;
 
     if (lastMessage.Header === "START") {
-      router.push({
-        pathname: "/swipe",
-        params: { roomCode: stringCode },
-      });
-
+      // No need to pass params; SwipeScreen is inside the RoomProvider
+      router.push("/swipe");
       return;
     }
 
@@ -40,15 +33,14 @@ export default function Room() {
         },
       });
     }
-  }, [lastMessage, stringCode]);
+  }, [lastMessage]);
 
   const handleStartRoom = async () => {
-    if (!stringCode) {
+    if (!roomCode) {
       router.push({
         pathname: "/error",
         params: { errorMessage: "Missing room code" },
       });
-
       return;
     }
 
@@ -59,15 +51,12 @@ export default function Room() {
           errorMessage: "WebSocket is not connected yet",
         },
       });
-
       return;
     }
 
     try {
       setIsStarting(true);
-
-      const response = await startRoom(stringCode);
-
+      const response = await startRoom(roomCode);
       const ok = response === "true";
 
       if (!ok) {
@@ -80,11 +69,9 @@ export default function Room() {
       }
     } catch (e: unknown) {
       let message = "Internal Server Error";
-
       if (e instanceof Error) {
         message = e.message;
       }
-
       router.push({
         pathname: "/error",
         params: { errorMessage: message },
@@ -113,28 +100,14 @@ export default function Room() {
               onPress={handleStartRoom}
               disabled={isStarting || status !== "connected"}
             />
-
-            <Text style={styles.text}>
-              Code to join: {stringCode}
-            </Text>
-
-            <Text style={styles.text}>
-              {wsStatusText}
-            </Text>
+            <Text style={styles.text}>Code to join: {roomCode}</Text>
+            <Text style={styles.text}>{wsStatusText}</Text>
           </>
         ) : (
           <>
-            <Text style={styles.text}>
-              Waiting for host...
-            </Text>
-
-            <Text style={styles.text}>
-              Code to join: {stringCode}
-            </Text>
-
-            <Text style={styles.text}>
-              {wsStatusText}
-            </Text>
+            <Text style={styles.text}>Waiting for host...</Text>
+            <Text style={styles.text}>Code to join: {roomCode}</Text>
+            <Text style={styles.text}>{wsStatusText}</Text>
           </>
         )}
       </View>
@@ -149,7 +122,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
   },
-
   text: {
     fontSize: 16,
     textAlign: "center",

@@ -6,11 +6,9 @@ export default function RootLayout() {
     <PlacesProvider>
       <Stack>
         <Stack.Screen name="index" options={{ title: "Home" }} />
-        <Stack.Screen name="room" options={{ title: "Room" }} />
-        <Stack.Screen name="error" options={{ presentation: "modal", headerShown: false }} />
         <Stack.Screen name="join" options={{ title: "Join Room" }} />
-        <Stack.Screen name="swipe/index" options={{ title: "Placeholder" }} />
-        <Stack.Screen name="results" options={{ title: "Results" }} />
+        <Stack.Screen name="error" options={{ presentation: "modal", headerShown: false }} />
+        <Stack.Screen name="(room)" options={{ headerShown: false }} />
       </Stack>
     </PlacesProvider>
   );

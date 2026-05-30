@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 
 import { Card, SwipeDirection } from "../../src/swipe/types";
 import { useSwipeDeck } from "../../src/swipe/useSwipeDeck";
@@ -18,14 +18,11 @@ export default function SwipeScreen() {
   const [data, setData] = useState<Card[]>([]);
 
   const { width, height } = useWindowDimensions();
-
-  const { roomCode } = useLocalSearchParams<{ roomCode: string }>();
-
   const router = useRouter();
 
   const { setPlaces } = usePlaces();
-
-  const { send, lastMessage } = useRoom();
+  
+  const { send, lastMessage, roomCode } = useRoom();
 
   // React to server events
   useEffect(() => {
@@ -74,9 +71,9 @@ export default function SwipeScreen() {
   const handleSwipe = useCallback(
     (card: Card, direction: SwipeDirection) => {
       const result =
-        direction === "right"
-          ? "ACCEPT"
-          : "REJECT";
+       direction === "right"
+        ? "ACCEPT"
+         : "REJECT";
 
       const voteEventMessage: Message = {
         Header: "VOTE_EVENT",
