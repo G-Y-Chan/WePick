@@ -1,0 +1,35 @@
+services:
+  redis:
+    image: redis:alpine
+    container_name: redis-db
+    restart: always
+
+  app-instance-1:
+    build: ./backend
+    container_name: go-app-1
+    restart: always
+    depends_on:
+      - redis
+    env_file:
+      - ./backend/.env
+
+  app-instance-2:
+    build: ./backend
+    container_name: go-app-2
+    restart: always
+    depends_on:
+      - redis
+    env_file:
+      - ./backend/.env
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    restart: always
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - app-instance-1
+      - app-instance-2
