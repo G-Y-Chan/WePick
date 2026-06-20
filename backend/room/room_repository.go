@@ -22,7 +22,8 @@ func NewRoomRepository(rdb *redis.Client) *RoomRepository {
 
 var incrementAndCheckScript = redis.NewScript(`
 local newCount = redis.call("HINCRBY", KEYS[1], ARGV[1], 1)
-if newCount == tonumber(ARGV[2]) then
+local numClients = tonumber(ARGV[2])
+if newCount == numClients then
 	return 1
 else
 	return 0
@@ -52,6 +53,42 @@ func (rr *RoomRepository) IncrementAcceptVote(
 
 	// result == 1 means threshold reached
 	return result == 1, nil
+}
+
+func (rr *RoomRepository) IncrementRoomClientCount(
+	ctx context.Context,
+	roomCode string,
+) (int64, error) {
+	key := fmt.Sprintf("room:%s:client_count", roomCode)
+	count, err := rr.rdb.Incr(ctx, key).Result()
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (rr *RoomRepository) DecrementRoomClientCount(
+	ctx context.Context,
+	roomCode string,
+) (int64, error) {
+	key := fmt.Sprintf("room:%s:client_count", roomCode)
+	count, err := rr.rdb.Decr(ctx, key).Result()
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (rr *RoomRepository) GetRoomClientCount(
+	ctx context.Context,
+	roomCode string,
+) (int64, error) {
+	key := fmt.Sprintf("room:%s:client_count", roomCode)
+	count, err := rr.rdb.Get(ctx, key).Int64()
+	if err != nil && err != redis.Nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func (rr *RoomRepository) PublishMajorityFound(ctx context.Context, roomID string, voteID string) error {
