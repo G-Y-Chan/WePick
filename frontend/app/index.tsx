@@ -50,16 +50,6 @@ export default function Index() {
     });
   };
 
-  const handleViewResults = async () => {
-    router.push({
-      pathname: "/results",
-      params: { 
-        Title: "Sushi Express",
-			  Description: "Affordable conveyor-belt sushi chain popular for $2++ plates and a wide variety of Japanese dishes.",
-      },
-    });
-  };
-
   return (
     <SafeAreaProvider>
       <View style={styles.container}>
@@ -77,7 +67,6 @@ export default function Index() {
           <>
             <Button title="Create Room" onPress={handleCreateRoom} />
             <Button title="Join Room" onPress={handleJoinRoom} />
-            <Button title="View Results (Demo)" onPress={handleViewResults} />
           </>
         )}
       </View>
