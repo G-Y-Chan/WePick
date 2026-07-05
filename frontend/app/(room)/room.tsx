@@ -20,13 +20,12 @@ export default function Room() {
     if (!lastMessage) return;
 
     if (lastMessage.Header === "START") {
-      // No need to pass params; SwipeScreen is inside the RoomProvider
-      router.push("/swipe");
+      router.replace("/swipe");
       return;
     }
 
     if (lastMessage.Header === "ERROR") {
-      router.push({
+      router.replace({
         pathname: "/error",
         params: {
           errorMessage: lastMessage.Body || "Server error",
@@ -37,7 +36,7 @@ export default function Room() {
 
   const handleStartRoom = async () => {
     if (!roomCode) {
-      router.push({
+      router.replace({
         pathname: "/error",
         params: { errorMessage: "Missing room code" },
       });
@@ -45,7 +44,7 @@ export default function Room() {
     }
 
     if (status !== "connected") {
-      router.push({
+      router.replace({
         pathname: "/error",
         params: {
           errorMessage: "WebSocket is not connected yet",
@@ -60,7 +59,7 @@ export default function Room() {
       const ok = response === "true";
 
       if (!ok) {
-        router.push({
+        router.replace({
           pathname: "/error",
           params: {
             errorMessage: "Unable to start room",
@@ -72,7 +71,7 @@ export default function Room() {
       if (e instanceof Error) {
         message = e.message;
       }
-      router.push({
+      router.replace({
         pathname: "/error",
         params: { errorMessage: message },
       });
