@@ -124,117 +124,25 @@ func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) HandleGetCardData(w http.ResponseWriter, req *http.Request) {
-	cards := []util.Card{
-		{
-			ID:          "1",
-			Title:       "Sushi Express",
-			Category:    "Japanese Restaurant",
-			PriceLevel:  "$",
-			Rating:      4.2,
-			ReviewCount: 1450,
-			OpenNow:     true,
-			Summary:     "Affordable conveyor-belt sushi chain popular for $2++ plates and a wide variety of Japanese dishes.",
-			Address:     "10 Tampines Central 1, #04-12, Singapore 529536",
-		},
-		{
-			ID:          "2",
-			Title:       "Eighteen Chefs",
-			Category:    "Western Fusion",
-			PriceLevel:  "$$",
-			Rating:      3.9,
-			ReviewCount: 820,
-			OpenNow:     true,
-			Summary:     "Casual Western-fusion restaurant famous for its 'Heart Attack Fried Rice' and hearty mains.",
-			Address:     "2 Handy Rd, #04-12 The Cathay, Singapore 229233",
-		},
-		{
-			ID:          "3",
-			Title:       "Seoul Garden",
-			Category:    "Korean BBQ & Hotpot",
-			PriceLevel:  "$$",
-			Rating:      4.1,
-			ReviewCount: 2100,
-			OpenNow:     false,
-			Summary:     "Korean BBQ buffet restaurant offering grill-it-yourself meats and hotpot options.",
-			Address:     "200 Victoria St, #02-52 Bugis Junction, Singapore 188021",
-		},
-		{
-			ID:          "4",
-			Title:       "Ichiban Sushi",
-			Category:    "Japanese Restaurant",
-			PriceLevel:  "$$",
-			Rating:      4.3,
-			ReviewCount: 940,
-			OpenNow:     true,
-			Summary:     "Family-friendly Japanese restaurant serving sushi, ramen, donburi and bento sets.",
-			Address:     "53 Ang Mo Kio Ave 3, #02-01 AMK Hub, Singapore 569933",
-		},
-		{
-			ID:          "5",
-			Title:       "Swensen's",
-			Category:    "Western Restaurant",
-			PriceLevel:  "$$",
-			Rating:      4.0,
-			ReviewCount: 1750,
-			OpenNow:     true,
-			Summary:     "Classic Western restaurant known for fish & chips, burgers and ice cream desserts.",
-			Address:     "68 Orchard Rd, #03-23 Plaza Singapura, Singapore 238839",
-		},
-		{
-			ID:          "6",
-			Title:       "Pho Vietnam",
-			Category:    "Vietnamese Restaurant",
-			PriceLevel:  "$",
-			Rating:      4.5,
-			ReviewCount: 310,
-			OpenNow:     true,
-			Summary:     "Vietnamese restaurant serving pho noodle soups, banh mi and other traditional dishes.",
-			Address:     "200 Turf Club Rd, Singapore 287994",
-		},
-		{
-			ID:          "7",
-			Title:       "Yakiniku Like",
-			Category:    "Japanese Solo BBQ",
-			PriceLevel:  "$$",
-			Rating:      4.4,
-			ReviewCount: 1120,
-			OpenNow:     false,
-			Summary:     "Japanese solo BBQ restaurant where diners grill individual meat sets quickly at their table.",
-			Address:     "10 Paya Lebar Rd, #B1-28 Paya Lebar Quarter, Singapore 409057",
-		},
-		{
-			ID:          "8",
-			Title:       "Soup Restaurant",
-			Category:    "Chinese Restaurant",
-			PriceLevel:  "$$$",
-			Rating:      4.2,
-			ReviewCount: 680,
-			OpenNow:     true,
-			Summary:     "Singapore brand famous for its Samsui Ginger Chicken and traditional Chinese home-style dishes.",
-			Address:     "1 HarbourFront Walk, #02-141 VivoCity, Singapore 098585",
-		},
-		{
-			ID:          "9",
-			Title:       "Kenny Rogers Roasters Express",
-			Category:    "Western Halal Chain",
-			PriceLevel:  "$$",
-			Rating:      3.7,
-			ReviewCount: 240,
-			OpenNow:     true,
-			Summary:     "Western chain known for roasted chicken, ribs, and hearty comfort-food sides.",
-			Address:     "1 Pasir Ris Close, #02-336 Downtown East, Singapore 519599",
-		},
-		{
-			ID:          "10",
-			Title:       "Munchi Pancakes",
-			Category:    "Local Snack Stall",
-			PriceLevel:  "$",
-			Rating:      4.6,
-			ReviewCount: 530,
-			OpenNow:     true,
-			Summary:     "Local snack stall selling traditional min jiang kueh pancakes with sweet fillings.",
-			Address:     "51 Yishun Ave 11, #01-43 Yishun Park Hawker Centre, Singapore 768867",
-		},
+	// 1. Extract the room code from the URL query parameters (e.g., /get-card-data?code=123456)
+	code := req.URL.Query().Get("code")
+	if code == "" {
+		http.Error(w, "Missing room code", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Fetch the cards from Redis using the request context
+	// Note: If your RoomRepo is unexported inside RoomManager, you will need to add a
+	// simple passthrough method called GetRoomCards on your RoomManager.
+	cards, err := s.RoomManager.GetRoomCards(req.Context(), code)
+	if err != nil {
+		http.Error(w, "Failed to fetch cards: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 3. Ensure we return an empty array `[]` instead of `null` if the room has no cards yet
+	if cards == nil {
+		cards = []util.Card{}
 	}
 
 	m := util.Message{
