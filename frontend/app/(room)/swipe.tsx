@@ -47,16 +47,21 @@ export default function SwipeScreen() {
     let cancelled = false;
 
     async function load() {
-      const location = "PLACEHOLDER_LOCATION";
+      // 1. Bail out early if we don't have a room code yet
+      if (!roomCode) return;
 
-      const res = await getCardData(location);
+      try {
+        // 2. Fetch data using the actual roomCode instead of the placeholder
+        const res = await getCardData(roomCode);
 
-      if (!cancelled) {
-        const cards = res || [];
+        if (!cancelled) {
+          const cards = res || [];
 
-        setData(cards);
-
-        setPlaces(cards);
+          setData(cards);
+          setPlaces(cards);
+        }
+      } catch (error) {
+        console.error("Failed to load cards:", error);
       }
     }
 
@@ -65,7 +70,7 @@ export default function SwipeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [setPlaces]);
+  }, [setPlaces, roomCode]); // 3. Added roomCode to the dependency array
 
   // Send vote event
   const handleSwipe = useCallback(
