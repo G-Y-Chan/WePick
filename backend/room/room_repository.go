@@ -1,11 +1,13 @@
 package room
 
 import (
-	"fmt"
-	"github.com/redis/go-redis/v9"
+	"backend/util"
 	"context"
-	"strconv"
 	"encoding/json"
+	"fmt"
+	"strconv"
+
+	"github.com/redis/go-redis/v9"
 )
 
 const roomEventsChannel = "room_events"
@@ -42,9 +44,9 @@ func (rr *RoomRepository) IncrementAcceptVote(
 	result, err := incrementAndCheckScript.Run(
 		ctx,
 		rr.rdb,
-		[]string{key},   // KEYS[1]
-		voteID,          // ARGV[1]
-		numClients,      // ARGV[2]
+		[]string{key}, // KEYS[1]
+		voteID,        // ARGV[1]
+		numClients,    // ARGV[2]
 	).Int()
 
 	if err != nil {
@@ -93,8 +95,8 @@ func (rr *RoomRepository) GetRoomClientCount(
 
 func (rr *RoomRepository) PublishMajorityFound(ctx context.Context, roomID string, voteID string) error {
 	event := RoomEvent{
-		Type: "majority_found",
-		Room: roomID,
+		Type:   "majority_found",
+		Room:   roomID,
 		VoteID: voteID,
 	}
 	payload, err := json.Marshal(event)
@@ -114,7 +116,7 @@ func (rr *RoomRepository) CreateRoom(code string) (bool, error) {
 		return 1
 	`
 
-	res, err := rr.rdb.Eval(context.Background(), script, []string{"room:"+code}).Int()
+	res, err := rr.rdb.Eval(context.Background(), script, []string{"room:" + code}).Int()
 	if err != nil {
 		return false, err
 	}
@@ -147,7 +149,6 @@ func (rr *RoomRepository) CheckIfRoomStarted(code string) (bool, error) {
 	return started, nil
 }
 
-
 func (rr *RoomRepository) StartRoom(code string) error {
 	event := RoomEvent{
 		Type: "room_started",
@@ -171,7 +172,7 @@ func (rr *RoomRepository) StartRoom(code string) error {
 	res, err := rr.rdb.Eval(
 		context.Background(),
 		script,
-		[]string{"room:"+code},
+		[]string{"room:" + code},
 		"room_events",
 		payload,
 	).Int()
@@ -196,4 +197,58 @@ func (rr *RoomRepository) SubscribeToRoomEvents() <-chan *redis.Message {
 	}
 
 	return pubsub.Channel()
+}
+
+// Save the full deck of cards inside the room hash
+func (rr *RoomRepository) SetRoomCards(ctx context.Context, code string, cards []util.Card) error {
+	data, err := json.Marshal(cards)
+	if err != nil {
+		return err
+	}
+
+	key := "room:" + code
+	// Store it as a field named "cards" inside the room hash
+	return rr.rdb.HSet(ctx, key, "cards", data).Err()
+}
+
+// Fetch the deck of cards from the room hash
+func (rr *RoomRepository) GetRoomCards(ctx context.Context, code string) ([]util.Card, error) {
+	key := "room:" + code
+	data, err := rr.rdb.HGet(ctx, key, "cards").Bytes()
+	if err == redis.Nil {
+		return nil, nil // No cards stored yet
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var cards []util.Card
+	if err := json.Unmarshal(data, &cards); err != nil {
+		return nil, err
+	}
+
+	return cards, nil
+}
+
+// Save the page token to the existing room hash
+func (rr *RoomRepository) SetPageToken(ctx context.Context, code string, token string) error {
+	key := "room:" + code
+	// We use HSet to add the pageToken field to the room's hash
+	return rr.rdb.HSet(ctx, key, "pageToken", token).Err()
+}
+
+// Retrieve the page token when the host requests more cards
+func (rr *RoomRepository) GetPageToken(ctx context.Context, code string) (string, error) {
+	key := "room:" + code
+	token, err := rr.rdb.HGet(ctx, key, "pageToken").Result()
+
+	// If the field doesn't exist, it might just mean there is no token (end of results)
+	if err == redis.Nil {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
