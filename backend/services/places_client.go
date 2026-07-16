@@ -25,9 +25,9 @@ func NewPlacesClient(apiKey string) *PlacesClient {
 }
 
 // FetchCards executes the text search within a bounding box viewport and maps the results directly to cards.
-func (pc *PlacesClient) FetchCards(lat, lng float64, filters util.Filters, pageToken string) ([]util.Card, string, error) {
+func (pc *PlacesClient) FetchCards(filters util.Filters, pageToken string) ([]util.Card, string, error) {
 	// 1. Build the HTTP request with the rectangular viewport constraint
-	req, err := pc.buildTextSearchRequest(lat, lng, filters, pageToken)
+	req, err := pc.buildTextSearchRequest(filters, pageToken)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to build request: %w", err)
 	}
@@ -50,7 +50,7 @@ func (pc *PlacesClient) FetchCards(lat, lng float64, filters util.Filters, pageT
 	}
 
 	// 4. Map every returned place directly into UI deck cards
-	cards, hitEdge := mapPlacesToCards(searchResp.Places, lat, lng, float64(filters.Radius))
+	cards, hitEdge := mapPlacesToCards(searchResp.Places, filters.Latitude, filters.Longitude, float64(filters.Radius))
 
 	token := searchResp.NextPageToken
 	if hitEdge {
@@ -60,9 +60,10 @@ func (pc *PlacesClient) FetchCards(lat, lng float64, filters util.Filters, pageT
 	return cards, token, nil
 }
 
-func (pc *PlacesClient) buildTextSearchRequest(lat, lng float64, filters util.Filters, pageToken string) (*http.Request, error) {
+func (pc *PlacesClient) buildTextSearchRequest(filters util.Filters, pageToken string) (*http.Request, error) {
 	// Convert center coordinates and radius filter into the mandatory rectangular bounding box
-	boundingBox := calculateBoundingBox(lat, lng, float64(filters.Radius))
+	// using the latitude and longitude directly from the filters struct
+	boundingBox := calculateBoundingBox(filters.Latitude, filters.Longitude, float64(filters.Radius))
 
 	reqBody := TextSearchRequest{
 		TextQuery: mapCategoryToTextQuery(filters.Category),
@@ -90,7 +91,7 @@ func (pc *PlacesClient) buildTextSearchRequest(lat, lng float64, filters util.Fi
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Goog-Api-Key", pc.APIKey)
 
-	// Field Mask Optimization: Removed places.location to save network overhead since we are keeping all bounding box items.
+	// Included places.location in the field mask to support Haversine filtering later
 	req.Header.Set("X-Goog-FieldMask", "places.id,places.displayName.text,places.shortFormattedAddress,places.primaryTypeDisplayName.text,places.priceLevel,places.rating,places.userRatingCount,places.currentOpeningHours.openNow,places.editorialSummary.text,places.location,nextPageToken")
 
 	return req, nil
