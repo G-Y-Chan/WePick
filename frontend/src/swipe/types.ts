@@ -1,7 +1,13 @@
 export type Card = {
   id: string;
   title: string;
-  description: string;
+  category: string;
+  priceLevel: string;
+  rating: number;
+  reviewCount: number;
+  openNow: boolean;
+  summary: string;
+  address: string;
 };
 
 export type SwipeDirection = "left" | "right";
