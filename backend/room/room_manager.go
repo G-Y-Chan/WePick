@@ -1,29 +1,33 @@
 package room
 
 import (
-	"fmt"
-	"math/rand"
-	"sync"
-	"github.com/gorilla/websocket"
-	"encoding/json"
-	"log"
-	"context"
+	"backend/services"
 	"backend/util"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"math/rand"
 	"strings"
+	"sync"
+
+	"github.com/gorilla/websocket"
 )
 
 type RoomManager struct {
-	mu        		sync.RWMutex
-	roomRepository 	*RoomRepository
-	rooms 			map[string]*RoomConnections
-	max       		int
+	mu             sync.RWMutex
+	roomRepository *RoomRepository
+	placesClient   *services.PlacesClient
+	rooms          map[string]*RoomConnections
+	max            int
 }
 
-func NewRoomManager(max int, roomRepository *RoomRepository) *RoomManager {
+func NewRoomManager(max int, roomRepository *RoomRepository, placesClient *services.PlacesClient) *RoomManager {
 	return &RoomManager{
 		roomRepository: roomRepository,
-		rooms: make(map[string]*RoomConnections),
-		max: max,
+		placesClient:   placesClient,
+		rooms:          make(map[string]*RoomConnections),
+		max:            max,
 	}
 }
 
@@ -80,12 +84,12 @@ func (rm *RoomManager) StartEventListener() {
 
 func (rm *RoomManager) handleEvent(event RoomEvent) {
 	switch event.Type {
-		case "room_started":
-			fmt.Println("Received room_started event for room:", event.Room)
-			rm.BroadcastRoomStarted(event.Room)
-		case "majority_found":
-			fmt.Println("Received majority_found event for room:", event.Room, "voteID:", event.VoteID)
-			rm.BroadcastMajorityFound(event.Room, event.VoteID)
+	case "room_started":
+		fmt.Println("Received room_started event for room:", event.Room)
+		rm.BroadcastRoomStarted(event.Room)
+	case "majority_found":
+		fmt.Println("Received majority_found event for room:", event.Room, "voteID:", event.VoteID)
+		rm.BroadcastMajorityFound(event.Room, event.VoteID)
 	}
 }
 
@@ -133,8 +137,31 @@ func (rm *RoomManager) AddRoom() (string, error) {
 	}
 }
 
-func (rm *RoomManager) StartRoom(code string) (bool, error) {
-	err := rm.roomRepository.StartRoom(code)
+func (rm *RoomManager) StartRoom(code string, filters util.Filters) (bool, error) {
+	ctx := context.Background()
+
+	// 1. Fetch exactly ONE page of cards (pass an empty string for the initial pageToken)
+	cards, nextPageToken, err := rm.placesClient.FetchCards(filters, "")
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch places: %w", err)
+	}
+
+	if len(cards) == 0 {
+		return false, fmt.Errorf("no places found within the specified area")
+	}
+
+	// 2. Save the initial deck of cards to Redis
+	if err := rm.roomRepository.SetRoomCards(ctx, code, cards); err != nil {
+		return false, fmt.Errorf("failed to save room cards: %w", err)
+	}
+
+	// 3. Save the pagination token to the room's hash in Redis
+	if err := rm.roomRepository.SetPageToken(ctx, code, nextPageToken); err != nil {
+		return false, fmt.Errorf("failed to save page token: %w", err)
+	}
+
+	// 4. Mark the room as started (this triggers your room_started event)
+	err = rm.roomRepository.StartRoom(code)
 	if err != nil {
 		return false, err
 	}
@@ -188,4 +215,8 @@ func (rm *RoomManager) UnregisterConn(code string, conn *websocket.Conn) {
 
 	roomConnections.Remove(conn)
 	_, _ = rm.roomRepository.DecrementRoomClientCount(context.Background(), code)
+}
+
+func (rm *RoomManager) GetRoomCards(ctx context.Context, code string) ([]util.Card, error) {
+	return rm.roomRepository.GetRoomCards(ctx, code)
 }
