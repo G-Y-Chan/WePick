@@ -1,13 +1,15 @@
 package main
 
 import (
-	"net/http"
-	"backend/handlers"
-	"backend/room"
-	"backend/infra"
 	"backend/config"
-	"github.com/rs/cors"
+	"backend/handlers"
+	"backend/infra"
+	"backend/room"
+	"backend/services"
+	"net/http"
+
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -18,10 +20,11 @@ func main() {
 	cfg := config.LoadEnv()
 	rdb := infra.NewRedisClient(cfg.Redis)
 	roomRepo := room.NewRoomRepository(rdb)
-	roomManager := room.NewRoomManager(1_000_000, roomRepo)
+	placesClient := services.NewPlacesClient(cfg.GooglePlaces.APIKey)
+	roomManager := room.NewRoomManager(1_000_000, roomRepo, placesClient)
 
 	go roomManager.StartEventListener()
-	
+
 	s := &handlers.Server{
 		RoomManager: roomManager,
 	}
@@ -48,11 +51,11 @@ func main() {
 		AllowOriginFunc: func(origin string) bool {
 			return true
 			/*
-			return origin == "http://localhost:8081" ||
-				origin == "http://localhost:19006" ||
-				strings.HasSuffix(origin, ".exp.direct") ||
-				strings.HasSuffix(origin, ".expo.dev") ||
-				strings.HasSuffix(origin, ".ngrok-free.app")
+				return origin == "http://localhost:8081" ||
+					origin == "http://localhost:19006" ||
+					strings.HasSuffix(origin, ".exp.direct") ||
+					strings.HasSuffix(origin, ".expo.dev") ||
+					strings.HasSuffix(origin, ".ngrok-free.app")
 			*/
 		},
 		AllowedMethods: []string{"GET", "POST", "OPTIONS"},
