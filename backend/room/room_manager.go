@@ -40,18 +40,17 @@ func (rm *RoomManager) HandleVote(ctx context.Context, vote util.Vote) error {
 		return nil
 	}
 
-	// optional: validate room exists in memory
-	rm.mu.RLock()
-	roomConnections, exists := rm.rooms[vote.Room]
-	clients := roomConnections.clients
-	numClients := len(clients)
-	rm.mu.RUnlock()
-
-	if !exists {
-		return fmt.Errorf("room %s not found", vote.Room)
+	// get client count from redis
+	numClients, err := rm.roomRepository.GetRoomClientCount(ctx, vote.Room)
+	if err != nil {
+		return err
 	}
 
-	majorityFound, err := rm.roomRepository.IncrementAcceptVote(ctx, vote.Room, vote.Id, numClients)
+	if numClients == 0 {
+		return fmt.Errorf("room %s has no connected clients", vote.Room)
+	}
+
+	majorityFound, err := rm.roomRepository.IncrementAcceptVote(ctx, vote.Room, vote.Id, int(numClients))
 	if err != nil {
 		return err
 	}
@@ -173,7 +172,9 @@ func (rm *RoomManager) RegisterConn(code string, conn *websocket.Conn) error {
 	rm.mu.Unlock()
 
 	roomConnections.Add(conn)
-	return nil
+
+	_, err = rm.roomRepository.IncrementRoomClientCount(context.Background(), code)
+	return err
 }
 
 func (rm *RoomManager) UnregisterConn(code string, conn *websocket.Conn) {
@@ -186,4 +187,5 @@ func (rm *RoomManager) UnregisterConn(code string, conn *websocket.Conn) {
 	}
 
 	roomConnections.Remove(conn)
+	_, _ = rm.roomRepository.DecrementRoomClientCount(context.Background(), code)
 }
