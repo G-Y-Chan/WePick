@@ -18,7 +18,6 @@ type RedisConfig struct {
 	Protocol int
 }
 
-// Group Google Places configurations together
 type GooglePlacesConfig struct {
 	APIKey string
 }
@@ -44,7 +43,6 @@ func LoadEnv() Config {
 		}
 	}
 
-	// Read the API Key from your environment variables
 	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
 
 	return Config{
