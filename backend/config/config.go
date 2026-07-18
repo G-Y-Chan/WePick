@@ -8,7 +8,7 @@ import (
 type Config struct {
 	Port         string
 	Redis        RedisConfig
-	GooglePlaces GooglePlacesConfig // Added Google Places configuration
+	GooglePlaces GooglePlacesConfig
 }
 
 type RedisConfig struct {
