@@ -199,7 +199,6 @@ func (rr *RoomRepository) SubscribeToRoomEvents() <-chan *redis.Message {
 	return pubsub.Channel()
 }
 
-// Save the full deck of cards inside the room hash
 func (rr *RoomRepository) SetRoomCards(ctx context.Context, code string, cards []util.Card) error {
 	data, err := json.Marshal(cards)
 	if err != nil {
@@ -207,11 +206,9 @@ func (rr *RoomRepository) SetRoomCards(ctx context.Context, code string, cards [
 	}
 
 	key := "room:" + code
-	// Store it as a field named "cards" inside the room hash
 	return rr.rdb.HSet(ctx, key, "cards", data).Err()
 }
 
-// Fetch the deck of cards from the room hash
 func (rr *RoomRepository) GetRoomCards(ctx context.Context, code string) ([]util.Card, error) {
 	key := "room:" + code
 	data, err := rr.rdb.HGet(ctx, key, "cards").Bytes()
@@ -230,19 +227,15 @@ func (rr *RoomRepository) GetRoomCards(ctx context.Context, code string) ([]util
 	return cards, nil
 }
 
-// Save the page token to the existing room hash
 func (rr *RoomRepository) SetPageToken(ctx context.Context, code string, token string) error {
 	key := "room:" + code
-	// We use HSet to add the pageToken field to the room's hash
 	return rr.rdb.HSet(ctx, key, "pageToken", token).Err()
 }
 
-// Retrieve the page token when the host requests more cards
 func (rr *RoomRepository) GetPageToken(ctx context.Context, code string) (string, error) {
 	key := "room:" + code
 	token, err := rr.rdb.HGet(ctx, key, "pageToken").Result()
 
-	// If the field doesn't exist, it might just mean there is no token (end of results)
 	if err == redis.Nil {
 		return "", nil
 	}

@@ -38,10 +38,10 @@ func main() {
 	mux.HandleFunc("/post-email", s.PostEmail)
 
 	// Actual endpoints
-	mux.HandleFunc("/get-room-code", s.GetRoomCode)
-	mux.HandleFunc("/join-room", s.HandleRoomJoin)
-	mux.HandleFunc("/start-room", s.HandleRoomStart)
-	mux.HandleFunc("/get-card-data", s.HandleGetCardData)
+	mux.HandleFunc("GET /rooms", s.GetRoomCode)
+	mux.HandleFunc("POST /rooms/{code}/join", s.HandleRoomJoin)
+	mux.HandleFunc("POST /rooms/{code}/start", s.HandleRoomStart)
+	mux.HandleFunc("GET /rooms/{code}/cards", s.HandleGetCardData)
 
 	// WebSocket endpoint (CORS isn’t enforced the same way for WS, but it’s fine to wrap anyway)
 	mux.HandleFunc("/ws", s.HandleRoomWS)

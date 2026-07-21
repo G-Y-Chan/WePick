@@ -24,15 +24,15 @@ func NewPlacesClient(apiKey string) *PlacesClient {
 	}
 }
 
-// FetchCards executes the text search within a bounding box viewport and maps the results directly to cards.
+// FetchCards executes the text search within a bounding box viewport and maps the results directly to cards
 func (pc *PlacesClient) FetchCards(filters util.Filters, pageToken string) ([]util.Card, string, error) {
-	// 1. Build the HTTP request with the rectangular viewport constraint
+	// Build the HTTP request with the rectangular viewport constraint
 	req, err := pc.buildTextSearchRequest(filters, pageToken)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to build request: %w", err)
 	}
 
-	// 2. Send the request to Google
+	// Send the request to Google
 	resp, err := pc.HTTPClient.Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("places api network error: %w", err)
@@ -43,13 +43,13 @@ func (pc *PlacesClient) FetchCards(filters util.Filters, pageToken string) ([]ut
 		return nil, "", fmt.Errorf("google api returned status code: %d", resp.StatusCode)
 	}
 
-	// 3. Decode the raw response payload
+	// Decode the raw response payload
 	var searchResp TextSearchResponse
 	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
 		return nil, "", fmt.Errorf("failed to decode google response: %w", err)
 	}
 
-	// 4. Map every returned place directly into UI deck cards
+	// Map every returned place directly into UI deck cards
 	cards, hitEdge := mapPlacesToCards(searchResp.Places, filters.Latitude, filters.Longitude, float64(filters.Radius))
 
 	token := searchResp.NextPageToken
@@ -91,7 +91,6 @@ func (pc *PlacesClient) buildTextSearchRequest(filters util.Filters, pageToken s
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Goog-Api-Key", pc.APIKey)
 
-	// Included places.location in the field mask to support Haversine filtering later
 	req.Header.Set("X-Goog-FieldMask", "places.id,places.displayName.text,places.shortFormattedAddress,places.primaryTypeDisplayName.text,places.priceLevel,places.rating,places.userRatingCount,places.currentOpeningHours.openNow,places.editorialSummary.text,places.location,nextPageToken")
 
 	return req, nil
@@ -101,7 +100,6 @@ func (pc *PlacesClient) buildTextSearchRequest(filters util.Filters, pageToken s
 // Geometry & Mapping Helpers
 // ==========================================
 
-// how does this function work
 func calculateBoundingBox(lat, lng float64, radiusInMeters float64) Viewport {
 	const earthRadius = 6378137.0 // Earth's equatorial radius in meters
 
@@ -121,7 +119,6 @@ func calculateBoundingBox(lat, lng float64, radiusInMeters float64) Viewport {
 	}
 }
 
-// what categories should there be
 func mapCategoryToTextQuery(category string) string {
 	switch category {
 	case "cafe":
@@ -157,7 +154,6 @@ func mapPlacesToCards(places []Place, centerLat, centerLng float64, maxRadius fl
 			break
 		}
 
-		// Clean up the price level string, but leave UI styling to the frontend
 		priceDisplay := mapPriceLevel(place.PriceLevel)
 
 		cards = append(cards, util.Card{

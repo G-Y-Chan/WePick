@@ -94,7 +94,10 @@ func (rm *RoomManager) handleEvent(event RoomEvent) {
 }
 
 func (rm *RoomManager) BroadcastRoomStarted(code string) {
+	rm.mu.RLock()
 	roomConnections, exists := rm.rooms[code]
+	rm.mu.RUnlock()
+
 	if !exists {
 		fmt.Println("No active connections for room:", code)
 		return
@@ -140,7 +143,6 @@ func (rm *RoomManager) AddRoom() (string, error) {
 func (rm *RoomManager) StartRoom(code string, filters util.Filters) (bool, error) {
 	ctx := context.Background()
 
-	// 1. Fetch exactly ONE page of cards (pass an empty string for the initial pageToken)
 	cards, nextPageToken, err := rm.placesClient.FetchCards(filters, "")
 	if err != nil {
 		return false, fmt.Errorf("failed to fetch places: %w", err)
@@ -150,17 +152,14 @@ func (rm *RoomManager) StartRoom(code string, filters util.Filters) (bool, error
 		return false, fmt.Errorf("no places found within the specified area")
 	}
 
-	// 2. Save the initial deck of cards to Redis
 	if err := rm.roomRepository.SetRoomCards(ctx, code, cards); err != nil {
 		return false, fmt.Errorf("failed to save room cards: %w", err)
 	}
 
-	// 3. Save the pagination token to the room's hash in Redis
 	if err := rm.roomRepository.SetPageToken(ctx, code, nextPageToken); err != nil {
 		return false, fmt.Errorf("failed to save page token: %w", err)
 	}
 
-	// 4. Mark the room as started (this triggers your room_started event)
 	err = rm.roomRepository.StartRoom(code)
 	if err != nil {
 		return false, err
