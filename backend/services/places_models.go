@@ -2,6 +2,7 @@ package services
 
 // Places API Endpoint for Text Search (New)
 const textSearchEndpoint = "https://places.googleapis.com/v1/places:searchText"
+const photoEndpoint = "https://places.googleapis.com/v1/%s/media?maxHeightPx=800&maxWidthPx=800&skipHttpRedirect=true&key=%s"
 
 type LatLng struct {
 	Latitude  float64 `json:"latitude"`
@@ -37,6 +38,10 @@ type OpeningHours struct {
 	OpenNow bool `json:"openNow"`
 }
 
+type Photo struct {
+	Name string `json:"name"`
+}
+
 type Place struct {
 	ID                     string        `json:"id"`
 	DisplayName            LocalizedText `json:"displayName"`
@@ -48,9 +53,14 @@ type Place struct {
 	CurrentOpeningHours    OpeningHours  `json:"currentOpeningHours"`
 	EditorialSummary       LocalizedText `json:"editorialSummary"`
 	Location               LatLng        `json:"location"`
+	Photos                 []Photo       `json:"photos,omitempty"`
 }
 
 type TextSearchResponse struct {
 	Places        []Place `json:"places"`
 	NextPageToken string  `json:"nextPageToken,omitempty"`
+}
+
+type PhotoMediaResponse struct {
+	PhotoUri string `json:"photoUri"`
 }

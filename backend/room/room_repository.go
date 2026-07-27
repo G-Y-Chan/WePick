@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -244,4 +245,27 @@ func (rr *RoomRepository) GetPageToken(ctx context.Context, code string) (string
 	}
 
 	return token, nil
+}
+
+// GetCachedPhotoURL retrieves the CDN string from Redis
+func (rr *RoomRepository) GetCachedPhotoURL(ctx context.Context, photoName string) (string, error) {
+	key := fmt.Sprintf("photo:%s", photoName)
+
+	url, err := rr.rdb.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return "", nil // Cache miss, not an error
+	}
+	if err != nil {
+		return "", err
+	}
+
+	return url, nil
+}
+
+// SetCachedPhotoURL saves the CDN string to Redis with a TTL
+func (rr *RoomRepository) SetCachedPhotoURL(ctx context.Context, photoName string, url string) error {
+	key := fmt.Sprintf("photo:%s", photoName)
+
+	// Set a 12-hour TTL since Google CDN photoUri links eventually expire
+	return rr.rdb.Set(ctx, key, url, 12*time.Hour).Err()
 }

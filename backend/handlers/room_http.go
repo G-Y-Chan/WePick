@@ -153,3 +153,30 @@ func (s *Server) HandleGetCardData(w http.ResponseWriter, req *http.Request) {
 		Cards:  cards,
 	})
 }
+
+func (s *Server) HandleGetImage(w http.ResponseWriter, req *http.Request) {
+	photoName := req.URL.Query().Get("name")
+	if photoName == "" {
+		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+			Header: "Image Error",
+			Body:   "missing photo name parameter",
+		})
+		return
+	}
+
+	// Delegate to RoomManager to securely resolve the keyless CDN URL
+	safePhotoUri, err := s.RoomManager.GetPhotoURL(photoName)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, util.ErrorResponse{
+			Header: "Image Error",
+			Body:   "failed to fetch image",
+		})
+		return
+	}
+
+	// Cache the redirect on the device for 24 hours to reduce backend hits
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+
+	// Redirect the mobile app to the safe Google CDN URL
+	http.Redirect(w, req, safePhotoUri, http.StatusFound)
+}
