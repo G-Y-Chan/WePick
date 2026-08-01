@@ -2,7 +2,9 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Image } from "expo-image";
 import { usePlaces } from "@/src/context/places-context";
+import { getProxyImageUrl } from "@/services/api/urls";
 
 export default function ResultsScreen() {
   const router = useRouter();
@@ -12,7 +14,9 @@ export default function ResultsScreen() {
   const place = id ? getPlaceById(id) : undefined;
 
   const title = place?.title ?? "No result selected";
-  const description = place?.description ?? "There is no winning card yet.";
+  const description = place?.summary ?? "There is no winning card yet.";
+
+  const imageUrl = getProxyImageUrl(place?.photoName);
 
   return (
     <SafeAreaProvider style={styles.safeArea}>
@@ -23,10 +27,13 @@ export default function ResultsScreen() {
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>
 
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>
-              {place ? "Winning Card Image" : "Result not found in cache"}
-            </Text>
+          <View style={styles.imageContainer}>
+            <Image
+              source={imageUrl ? { uri: imageUrl } : null}
+              style={styles.image}
+              contentFit="cover"
+              transition={250}
+            />
           </View>
         </View>
 
@@ -49,14 +56,6 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 20,
   },
-  kicker: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 6,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
   heading: {
     fontSize: 32,
     fontWeight: "800",
@@ -72,17 +71,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e5e5e5",
   },
-  badge: {
-    alignSelf: "flex-start",
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#444",
-    backgroundColor: "#eaeaea",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginBottom: 14,
-  },
   title: {
     fontSize: 28,
     fontWeight: "800",
@@ -95,19 +83,18 @@ const styles = StyleSheet.create({
     color: "#444",
     marginBottom: 18,
   },
-  imagePlaceholder: {
+  imageContainer: {
     flex: 1,
     minHeight: 260,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#d8d8d8",
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    overflow: "hidden",
   },
-  imagePlaceholderText: {
-    fontSize: 14,
-    color: "#777",
+  image: {
+    width: "100%",
+    height: "100%",
   },
   button: {
     marginTop: 18,

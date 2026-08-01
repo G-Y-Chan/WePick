@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 
 import { useRouter } from "expo-router";
 
@@ -10,6 +11,7 @@ import { SwipeDeck } from "../../src/swipe/SwipeDeck";
 
 import { Message } from "@/services/types";
 import { getCardData } from "@/services/api/http";
+import { getProxyImageUrl } from "@/services/api/urls";
 
 import { usePlaces } from "@/src/context/places-context";
 import { useRoom } from "@/src/context/room-context";
@@ -47,11 +49,9 @@ export default function SwipeScreen() {
     let cancelled = false;
 
     async function load() {
-      // 1. Bail out early if we don't have a room code yet
       if (!roomCode) return;
 
       try {
-        // 2. Fetch data using the actual roomCode instead of the placeholder
         const res = await getCardData(roomCode);
 
         if (!cancelled) {
@@ -70,15 +70,15 @@ export default function SwipeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [setPlaces, roomCode]); // 3. Added roomCode to the dependency array
+  }, [setPlaces, roomCode]);
 
   // Send vote event
   const handleSwipe = useCallback(
     (card: Card, direction: SwipeDirection) => {
       const result =
-       direction === "right"
-        ? "ACCEPT"
-         : "REJECT";
+        direction === "right"
+          ? "ACCEPT"
+          : "REJECT";
 
       const voteEventMessage: Message = {
         Header: "VOTE_EVENT",
@@ -100,6 +100,28 @@ export default function SwipeScreen() {
     width,
     onSwipe: handleSwipe,
   });
+
+  // ==========================================
+  // Image Prefetching Sliding Window
+  // ==========================================
+  useEffect(() => {
+    if (!data.length || !deck.topCard) return;
+
+    const currentIndex = data.findIndex((c) => c.id === deck.topCard?.id);
+    if (currentIndex === -1) return;
+
+    const PREFETCH_WINDOW = 3;
+
+    // Convert upcoming photoNames into proxy URLs
+    const urlsToPrefetch = data
+      .slice(currentIndex, currentIndex + PREFETCH_WINDOW)
+      .map((c) => getProxyImageUrl(c.photoName))
+      .filter((url): url is string => Boolean(url));
+
+    if (urlsToPrefetch.length > 0) {
+      Image.prefetch(urlsToPrefetch);
+    }
+  }, [deck.topCard, data]);
 
   if (deck.done) {
     return (
