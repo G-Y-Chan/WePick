@@ -221,25 +221,9 @@ func (rm *RoomManager) GetRoomCards(ctx context.Context, code string) ([]util.Ca
 }
 
 func (rm *RoomManager) GetPhotoURL(photoName string) (string, error) {
-	ctx := context.Background()
-
-	// 1. Check if the photo URL has already been fetched and cached in the repository
-	cachedURL, err := rm.roomRepository.GetCachedPhotoURL(ctx, photoName)
-	if err == nil && cachedURL != "" {
-		return cachedURL, nil
-	}
-
-	// 2. If not found in cache, call the placesClient
 	photoURL, err := rm.placesClient.GetPhotoURL(photoName)
 	if err != nil {
 		return "", err
-	}
-
-	// 3. Save the newly fetched photo URL to the repository
-	err = rm.roomRepository.SetCachedPhotoURL(ctx, photoName, photoURL)
-	if err != nil {
-		// Log the error, but do not fail the request since we successfully got the URL
-		fmt.Printf("Warning: failed to cache photo URL for %s: %v\n", photoName, err)
 	}
 
 	return photoURL, nil

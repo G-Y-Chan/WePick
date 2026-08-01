@@ -164,8 +164,7 @@ func (s *Server) HandleGetImage(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Delegate to RoomManager to securely resolve the keyless CDN URL
-	safePhotoUri, err := s.RoomManager.GetPhotoURL(photoName)
+	photoUri, err := s.RoomManager.GetPhotoURL(photoName)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, util.ErrorResponse{
 			Header: "Image Error",
@@ -174,9 +173,5 @@ func (s *Server) HandleGetImage(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Cache the redirect on the device for 24 hours to reduce backend hits
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-
-	// Redirect the mobile app to the safe Google CDN URL
-	http.Redirect(w, req, safePhotoUri, http.StatusFound)
+	http.Redirect(w, req, photoUri, http.StatusFound)
 }
