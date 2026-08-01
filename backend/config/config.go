@@ -6,8 +6,9 @@ import (
 )
 
 type Config struct {
-	Port  string
-	Redis RedisConfig
+	Port         string
+	Redis        RedisConfig
+	GooglePlaces GooglePlacesConfig
 }
 
 type RedisConfig struct {
@@ -17,11 +18,15 @@ type RedisConfig struct {
 	Protocol int
 }
 
+type GooglePlacesConfig struct {
+	APIKey string
+}
+
 func LoadEnv() Config {
 	port := os.Getenv("PORT")
 
 	addr := os.Getenv("REDIS_ADDR")
-	
+
 	password := os.Getenv("REDIS_PASSWORD")
 
 	db := 0
@@ -38,6 +43,8 @@ func LoadEnv() Config {
 		}
 	}
 
+	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
+
 	return Config{
 		Port: port,
 		Redis: RedisConfig{
@@ -45,6 +52,9 @@ func LoadEnv() Config {
 			Password: password,
 			DB:       db,
 			Protocol: protocol,
+		},
+		GooglePlaces: GooglePlacesConfig{
+			APIKey: apiKey,
 		},
 	}
 }

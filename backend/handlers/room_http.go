@@ -3,51 +3,68 @@ package handlers
 import (
 	"backend/util"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 )
 
-func (s *Server) GetRoomCode(w http.ResponseWriter, req *http.Request) {
-	code, err := s.RoomManager.AddRoom()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+// ==========================================
+// Request DTO Structs
+// ==========================================
 
+type StartRoomPayload struct {
+	Filters util.Filters `json:"filters"`
+}
+
+// ==========================================
+// Helper Function
+// ==========================================
+
+func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	m := util.Message{
-		Header: "Room Code",
-		Body:   &code,
-	}
-
-	if err := json.NewEncoder(w).Encode(m); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		fmt.Printf("Failed to encode response: %v\n", err)
 	}
 }
 
-func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
-	defer req.Body.Close()
+// ==========================================
+// HTTP Handlers
+// ==========================================
 
-	roomCode, err := parseRoomCode(req)
+// Route: GET /rooms
+func (s *Server) GetRoomCode(w http.ResponseWriter, req *http.Request) {
+	code, err := s.RoomManager.AddRoom()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondJSON(w, http.StatusInternalServerError, util.ErrorResponse{
+			Header: "Room Code Error",
+			Body:   err.Error(),
+		})
 		return
-	} else {
-		fmt.Print(roomCode)
 	}
 
-	// Inform client that the response type is JSON
-	w.Header().Set("Content-Type", "application/json")
+	respondJSON(w, http.StatusOK, util.Message{
+		Header: "Room Code",
+		Body:   &code,
+	})
+}
 
-	joined, err := s.RoomManager.ValidateRoomJoin(roomCode)
+// Route: POST /rooms/{code}/join
+func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
+	code := req.PathValue("code")
+	if code == "" {
+		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+			Header: "Join Room Error",
+			Body:   "missing room code in url path",
+		})
+		return
+	}
+
+	fmt.Println("Received request to join room:", code)
+
+	joined, err := s.RoomManager.ValidateRoomJoin(code)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(util.ErrorResponse{
+		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
 			Header: "Join Room Error",
 			Body:   err.Error(),
 		})
@@ -55,8 +72,7 @@ func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if !joined {
-		w.WriteHeader(http.StatusForbidden) // Room already started
-		json.NewEncoder(w).Encode(util.ErrorResponse{
+		respondJSON(w, http.StatusForbidden, util.ErrorResponse{
 			Header: "Join Room Error",
 			Body:   "room already started",
 		})
@@ -64,32 +80,38 @@ func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
 	}
 
 	strJoined := strconv.FormatBool(joined)
-	m := util.Message{
-		Header: "Join Status", 
-		Body: &strJoined,
-	}
-	if err := json.NewEncoder(w).Encode(m); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
+	respondJSON(w, http.StatusOK, util.Message{
+		Header: "Join Status",
+		Body:   &strJoined,
+	})
 }
 
 func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
-	roomCode, err := parseRoomCode(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	code := req.PathValue("code")
+	if code == "" {
+		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+			Header: "Start Room Error",
+			Body:   "missing room code in url path",
+		})
 		return
 	}
 
-	fmt.Println("Attempting to start room:", roomCode)
-	w.Header().Set("Content-Type", "application/json")
+	var payload StartRoomPayload
 
-	started, err := s.RoomManager.StartRoom(roomCode)
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+			Header: "Start Room Error",
+			Body:   "invalid JSON payload",
+		})
+		return
+	}
+	defer req.Body.Close()
+
+	fmt.Printf("Attempting to start room: %s with filters: %+v\n", code, payload.Filters)
+
+	started, err := s.RoomManager.StartRoom(code, payload.Filters)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(util.ErrorResponse{
+		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
 			Header: "Start Room Error",
 			Body:   err.Error(),
 		})
@@ -97,99 +119,37 @@ func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 	}
 
 	strStarted := strconv.FormatBool(started)
-	m := util.Message{
-		Header: "Start Status", 
-		Body: &strStarted,
-	}
-	if err := json.NewEncoder(w).Encode(m); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func parseRoomCode(req *http.Request) (string, error) {
-	defer req.Body.Close()
-	fmt.Printf("Inside parseRoomCode...\n")
-	//fmt.Printf("Parsing room code from request body...\n")
-	//fmt.Printf("Request headers: %v\n", req.Header)
-	//fmt.Printf("Raw request body: %v\n", req.Body)
-	var roomCode string
-	if err := json.NewDecoder(req.Body).Decode(&roomCode); err != nil {
-		fmt.Printf("Error decoding room code: %v\n", err)
-		return "", err
-	}
-
-	if roomCode == "" {
-		return "", errors.New("empty room code")
-	}
-	fmt.Printf("Received room code: %s\n", roomCode)
-	return roomCode, nil
+	respondJSON(w, http.StatusOK, util.Message{
+		Header: "Start Status",
+		Body:   &strStarted,
+	})
 }
 
 func (s *Server) HandleGetCardData(w http.ResponseWriter, req *http.Request) {
-	cards := []util.Card{
-		{
-			ID: "1",
-			Title: "Sushi Express",
-			Description: "Affordable conveyor-belt sushi chain popular for $2++ plates and a wide variety of Japanese dishes.",
-		},
-		{
-			ID: "2",
-			Title: "Eighteen Chefs",
-			Description: "Casual Western-fusion restaurant famous for its 'Heart Attack Fried Rice' and hearty mains.",
-		},
-		{
-			ID: "3",
-			Title: "Seoul Garden",
-			Description: "Korean BBQ buffet restaurant offering grill-it-yourself meats and hotpot options.",
-		},
-		{
-			ID: "4",
-			Title: "Ichiban Sushi",
-			Description: "Family-friendly Japanese restaurant serving sushi, ramen, donburi and bento sets.",
-		},
-		{
-			ID: "5",
-			Title: "Swensen's",
-			Description: "Classic Western restaurant known for fish & chips, burgers and ice cream desserts.",
-		},
-		{
-			ID: "6",
-			Title: "Pho Vietnam",
-			Description: "Vietnamese restaurant serving pho noodle soups, banh mi and other traditional dishes.",
-		},
-		{
-			ID: "7",
-			Title: "Yakiniku Like",
-			Description: "Japanese solo BBQ restaurant where diners grill individual meat sets quickly at their table.",
-		},
-		{
-			ID: "8",
-			Title: "Soup Restaurant",
-			Description: "Singapore brand famous for its Samsui Ginger Chicken and traditional Chinese home-style dishes.",
-		},
-		{
-			ID: "9",
-			Title: "Kenny Rogers Roasters Express",
-			Description: "Western chain known for roasted chicken, ribs, and hearty comfort-food sides.",
-		},
-		{
-			ID: "10",
-			Title: "Munchi Pancakes",
-			Description: "Local snack stall selling traditional min jiang kueh pancakes with sweet fillings.",
-		},
-	}
-
-	m := util.Message{
-		Header: "CARD_DATA",
-		Cards:  cards,
-	}
-
-	if err := json.NewEncoder(w).Encode(m); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	code := req.PathValue("code")
+	if code == "" {
+		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+			Header: "Get Card Data Error",
+			Body:   "missing room code in url path",
+		})
 		return
 	}
+
+	cards, err := s.RoomManager.GetRoomCards(req.Context(), code)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, util.ErrorResponse{
+			Header: "Get Card Data Error",
+			Body:   "Failed to fetch cards: " + err.Error(),
+		})
+		return
+	}
+
+	if cards == nil {
+		cards = []util.Card{}
+	}
+
+	respondJSON(w, http.StatusOK, util.Message{
+		Header: "CARD_DATA",
+		Cards:  cards,
+	})
 }
-	

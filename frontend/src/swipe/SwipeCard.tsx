@@ -4,10 +4,31 @@ import { Card } from "./types";
 
 export function SwipeCard({ card }: { card: Card }) {
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.container}>
       <Text style={styles.title}>{card.title}</Text>
-      <Text style={styles.description}>{card.description}</Text>
+      
+      {/* Category and Price Row */}
+      <View style={styles.metaRow}>
+        <Text style={styles.metaText}>
+          {card.category}  •  {card.priceLevel}
+        </Text>
+        <Text style={[styles.openStatus, { color: card.openNow ? "#16a34a" : "#dc2626" }]}>
+          {card.openNow ? "Open Now" : "Closed"}
+        </Text>
+      </View>
 
+      {/* Rating and Reviews Row */}
+      <View style={styles.ratingRow}>
+        <Text style={styles.ratingText}>
+          ⭐ {card.rating} ({card.reviewCount} reviews)
+        </Text>
+      </View>
+
+      {/* Summary and Address */}
+      <Text style={styles.summary}>{card.summary}</Text>
+      <Text style={styles.address}>📍 {card.address}</Text>
+
+      {/* Image Placeholder */}
       <View style={styles.imagePlaceholder}>
         <Text style={styles.imagePlaceholderText}>Image Placeholder</Text>
       </View>
@@ -16,14 +37,59 @@ export function SwipeCard({ card }: { card: Card }) {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 26, fontWeight: "800", marginBottom: 10 },
-  description: { fontSize: 16, lineHeight: 22, marginBottom: 14 },
+  container: { 
+    flex: 1,
+  },
+  title: { 
+    fontSize: 26, 
+    fontWeight: "800", 
+    marginBottom: 6 
+  },
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  metaText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+  },
+  openStatus: {
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  ratingRow: {
+    marginBottom: 12,
+  },
+  ratingText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+  },
+  summary: { 
+    fontSize: 16, 
+    lineHeight: 22, 
+    marginBottom: 10 
+  },
+  address: {
+    fontSize: 14,
+    color: "#666",
+    fontStyle: "italic",
+    marginBottom: 16,
+  },
   imagePlaceholder: {
     flex: 1,
     borderRadius: 16,
     borderWidth: 1,
+    borderColor: "#e5e5e5",
+    backgroundColor: "#f5f5f5",
     justifyContent: "center",
     alignItems: "center",
   },
-  imagePlaceholderText: { fontSize: 14, opacity: 0.7 },
+  imagePlaceholderText: { 
+    fontSize: 14, 
+    opacity: 0.7 
+  },
 });

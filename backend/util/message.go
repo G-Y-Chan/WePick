@@ -7,9 +7,15 @@ type Vote struct {
 }
 
 type Card struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Category    string  `json:"category"`
+	PriceLevel  string  `json:"priceLevel"`
+	Rating      float64 `json:"rating"`
+	ReviewCount int     `json:"reviewCount"`
+	OpenNow     bool    `json:"openNow"`
+	Summary     string  `json:"summary"`
+	Address     string  `json:"address"`
 }
 
 type Message struct {
