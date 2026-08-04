@@ -2,7 +2,9 @@ package services
 
 // Places API Endpoint for Text Search (New)
 const textSearchEndpoint = "https://places.googleapis.com/v1/places:searchText"
-const photoEndpoint = "https://places.googleapis.com/v1/%s/media?maxHeightPx=800&maxWidthPx=800&skipHttpRedirect=true&key=%s"
+
+// UPDATED: Requested maxHeightPx and maxWidthPx increased from 800 to 4800 (Google's maximum limit)
+const photoEndpoint = "https://places.googleapis.com/v1/%s/media?maxHeightPx=4800&maxWidthPx=4800&skipHttpRedirect=true&key=%s"
 
 type LatLng struct {
 	Latitude  float64 `json:"latitude"`
@@ -38,8 +40,11 @@ type OpeningHours struct {
 	OpenNow bool `json:"openNow"`
 }
 
+// UPDATED: Added WidthPx and HeightPx to capture native image resolution
 type Photo struct {
-	Name string `json:"name"`
+	Name     string `json:"name"`
+	WidthPx  int    `json:"widthPx,omitempty"`
+	HeightPx int    `json:"heightPx,omitempty"`
 }
 
 type Place struct {
