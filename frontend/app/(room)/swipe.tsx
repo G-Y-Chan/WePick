@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 
 import { useRouter } from "expo-router";
 
@@ -11,7 +10,6 @@ import { SwipeDeck } from "../../src/swipe/SwipeDeck";
 
 import { Message } from "@/services/types";
 import { getCardData } from "@/services/api/http";
-import { getProxyImageUrl } from "@/services/api/urls";
 
 import { usePlaces } from "@/src/context/places-context";
 import { useRoom } from "@/src/context/room-context";
@@ -101,28 +99,6 @@ export default function SwipeScreen() {
     onSwipe: handleSwipe,
   });
 
-  // ==========================================
-  // Image Prefetching Sliding Window
-  // ==========================================
-  useEffect(() => {
-    if (!data.length || !deck.topCard) return;
-
-    const currentIndex = data.findIndex((c) => c.id === deck.topCard?.id);
-    if (currentIndex === -1) return;
-
-    const PREFETCH_WINDOW = 3;
-
-    // Convert upcoming photoNames into proxy URLs
-    const urlsToPrefetch = data
-      .slice(currentIndex, currentIndex + PREFETCH_WINDOW)
-      .map((c) => getProxyImageUrl(c.photoName))
-      .filter((url): url is string => Boolean(url));
-
-    if (urlsToPrefetch.length > 0) {
-      Image.prefetch(urlsToPrefetch);
-    }
-  }, [deck.topCard, data]);
-
   if (deck.done) {
     return (
       <SafeAreaProvider>
@@ -145,6 +121,7 @@ export default function SwipeScreen() {
         height={height}
         topCard={deck.topCard}
         nextCard={deck.nextCard}
+        bufferCards={deck.bufferCards} // <-- ADDED THIS PROP
         panHandlers={deck.panHandlers}
         position={deck.position}
         rotate={deck.rotate}

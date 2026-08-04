@@ -33,10 +33,12 @@ export function SwipeCard({ card }: { card: Card }) {
 
       <View style={styles.imageContainer}>
         <Image
+          key={card.id}
           source={imageUrl ? { uri: imageUrl } : null}
           style={styles.image}
           contentFit="cover"
           transition={250}
+          cachePolicy="memory-disk"
         />
       </View>
     </View>
