@@ -121,7 +121,7 @@ export default function SwipeScreen() {
         height={height}
         topCard={deck.topCard}
         nextCard={deck.nextCard}
-        bufferCards={deck.bufferCards} // <-- ADDED THIS PROP
+        bufferCards={deck.bufferCards}
         panHandlers={deck.panHandlers}
         position={deck.position}
         rotate={deck.rotate}

@@ -122,7 +122,6 @@ export function useSwipeDeck({ data, width, onSwipe }: Params) {
   const topCard = data[index];
   const nextCard = data[index + 1];
 
-  // 1. Grab the next 2 cards to silently mount as a background image buffer
   const bufferCards = data.slice(index + 2, index + 4);
 
   return {
@@ -130,7 +129,7 @@ export function useSwipeDeck({ data, width, onSwipe }: Params) {
     done,
     topCard,
     nextCard,
-    bufferCards, // 2. Export bufferCards so <SwipeDeck /> can render them hidden
+    bufferCards,
     panHandlers: panResponder.panHandlers,
     position,
     rotate,
