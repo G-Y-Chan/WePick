@@ -155,7 +155,7 @@ func (s *Server) HandleGetCardData(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) HandleGetImage(w http.ResponseWriter, req *http.Request) {
-	photoName := req.URL.Query().Get("name")
+	photoName := req.URL.Query().Get("photoName")
 	if photoName == "" {
 		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
 			Header: "Image Error",
