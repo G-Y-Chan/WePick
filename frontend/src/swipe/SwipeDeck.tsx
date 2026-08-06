@@ -42,7 +42,6 @@ export function SwipeDeck(props: Props) {
         style={[styles.edgeGlow, styles.rightEdge, { opacity: rightGlowOpacity }]}
       />
 
-      {/* 1. Mount buffer cards silently at the bottom of the stack */}
       {bufferCards.map((card) => (
         <View
           key={`buffer-${card.id}`}
@@ -53,7 +52,6 @@ export function SwipeDeck(props: Props) {
         </View>
       ))}
 
-      {/* 2. Render Next Card with unique ID key */}
       {nextCard ? (
         <Animated.View
           key={`next-${nextCard.id}`}
@@ -63,7 +61,6 @@ export function SwipeDeck(props: Props) {
         </Animated.View>
       ) : null}
 
-      {/* 3. Render Top Card with unique ID key */}
       {topCard ? (
         <Animated.View
           key={`top-${topCard.id}`}
