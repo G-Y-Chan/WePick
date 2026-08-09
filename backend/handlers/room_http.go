@@ -34,7 +34,7 @@ func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
 
 // Route: GET /rooms
 func (s *Server) GetRoomCode(w http.ResponseWriter, req *http.Request) {
-	code, err := s.RoomManager.AddRoom()
+	code, err := s.RoomManager.AddRoom(req.Context())
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, util.ErrorResponse{
 			Header: "Room Code Error",
@@ -62,7 +62,7 @@ func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
 
 	fmt.Println("Received request to join room:", code)
 
-	joined, err := s.RoomManager.ValidateRoomJoin(code)
+	joined, err := s.RoomManager.ValidateRoomJoin(req.Context(), code)
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
 			Header: "Join Room Error",
@@ -109,7 +109,7 @@ func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 
 	fmt.Printf("Attempting to start room: %s with filters: %+v\n", code, payload.Filters)
 
-	started, err := s.RoomManager.StartRoom(code, payload.Filters)
+	started, err := s.RoomManager.StartRoom(req.Context(), code, payload.Filters)
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
 			Header: "Start Room Error",
