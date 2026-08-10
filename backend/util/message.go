@@ -17,6 +17,7 @@ type Card struct {
 	Summary     string  `json:"summary"`
 	Address     string  `json:"address"`
 	PhotoName   string  `json:"photoName,omitempty"`
+	PhotoURL    string  `json:"photoUrl,omitempty"`
 }
 
 type Message struct {

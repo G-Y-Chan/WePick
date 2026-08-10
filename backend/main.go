@@ -42,6 +42,7 @@ func main() {
 	mux.HandleFunc("POST /rooms/{code}/join", s.HandleRoomJoin)
 	mux.HandleFunc("POST /rooms/{code}/start", s.HandleRoomStart)
 	mux.HandleFunc("GET /rooms/{code}/cards", s.HandleGetCardData)
+	mux.HandleFunc("GET /image/{photoName...}", s.HandleGetImage)
 	mux.HandleFunc("GET /image", s.HandleGetImage)
 
 	// WebSocket endpoint (CORS isn’t enforced the same way for WS, but it’s fine to wrap anyway)

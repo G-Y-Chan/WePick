@@ -9,6 +9,7 @@ export type Card = {
   summary: string;
   address: string;
   photoName?: string;
+  photoUrl?: string;
 };
 
 export type SwipeDirection = "left" | "right";

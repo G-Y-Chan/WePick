@@ -4,7 +4,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { usePlaces } from "@/src/context/places-context";
-import { getProxyImageUrl } from "@/services/api/urls";
+import { getImageUrl } from "@/services/api/urls";
 
 export default function ResultsScreen() {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function ResultsScreen() {
   const title = place?.title ?? "No result selected";
   const description = place?.summary ?? "There is no winning card yet.";
 
-  const imageUrl = getProxyImageUrl(place?.photoName);
+  const imageUrl = getImageUrl(place?.photoUrl, place?.photoName);
 
   return (
     <SafeAreaProvider style={styles.safeArea}>

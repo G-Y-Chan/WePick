@@ -50,7 +50,7 @@ func (pc *PlacesClient) FetchCards(filters util.Filters, pageToken string) ([]ut
 	}
 
 	// Map every returned place directly into UI deck cards
-	cards, hitEdge := mapPlacesToCards(searchResp.Places, filters.Latitude, filters.Longitude, float64(filters.Radius))
+	cards, hitEdge := pc.mapPlacesToCards(searchResp.Places, filters.Latitude, filters.Longitude, float64(filters.Radius))
 
 	token := searchResp.NextPageToken
 	if hitEdge {
@@ -173,7 +173,7 @@ func mapCategoryToIncludedType(category string) string {
 	}
 }
 
-func mapPlacesToCards(places []Place, centerLat, centerLng float64, maxRadius float64) ([]util.Card, bool) {
+func (pc *PlacesClient) mapPlacesToCards(places []Place, centerLat, centerLng float64, maxRadius float64) ([]util.Card, bool) {
 	cards := make([]util.Card, 0, len(places))
 	hitEdge := false
 
@@ -188,8 +188,12 @@ func mapPlacesToCards(places []Place, centerLat, centerLng float64, maxRadius fl
 		priceDisplay := mapPriceLevel(place.PriceLevel)
 
 		photoName := ""
+		photoURL := ""
 		if len(place.Photos) > 0 {
 			photoName = place.Photos[0].Name
+			if resolved, err := pc.GetPhotoURL(photoName); err == nil {
+				photoURL = resolved
+			}
 		}
 
 		cards = append(cards, util.Card{
@@ -203,6 +207,7 @@ func mapPlacesToCards(places []Place, centerLat, centerLng float64, maxRadius fl
 			Summary:     place.EditorialSummary.Text,
 			Address:     place.ShortFormattedAddress,
 			PhotoName:   photoName,
+			PhotoURL:    photoURL,
 		})
 	}
 	return cards, hitEdge

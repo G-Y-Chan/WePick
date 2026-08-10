@@ -2,10 +2,10 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { Card } from "./types";
-import { getProxyImageUrl } from "@/services/api/urls";
+import { getImageUrl } from "@/services/api/urls";
 
 export function SwipeCard({ card }: { card: Card }) {
-  const imageUrl = getProxyImageUrl(card.photoName);
+  const imageUrl = getImageUrl(card.photoUrl, card.photoName);
 
   return (
     <View style={styles.container}>

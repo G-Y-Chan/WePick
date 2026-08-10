@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 )
 
@@ -155,7 +156,13 @@ func (s *Server) HandleGetCardData(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) HandleGetImage(w http.ResponseWriter, req *http.Request) {
-	photoName := req.URL.Query().Get("photoName")
+	photoName := req.PathValue("photoName")
+	if photoName == "" {
+		photoName = req.URL.Query().Get("photoName")
+	}
+	if decoded, err := url.QueryUnescape(photoName); err == nil {
+		photoName = decoded
+	}
 	if photoName == "" {
 		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
 			Header: "Image Error",
