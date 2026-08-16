@@ -1,8 +1,12 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { Image } from "expo-image";
 import { Card } from "./types";
+import { getProxyImageUrl } from "@/services/api/urls";
 
 export function SwipeCard({ card }: { card: Card }) {
+  const imageUrl = getProxyImageUrl(card.photoName);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{card.title}</Text>
@@ -24,13 +28,18 @@ export function SwipeCard({ card }: { card: Card }) {
         </Text>
       </View>
 
-      {/* Summary and Address */}
       <Text style={styles.summary}>{card.summary}</Text>
       <Text style={styles.address}>📍 {card.address}</Text>
 
-      {/* Image Placeholder */}
-      <View style={styles.imagePlaceholder}>
-        <Text style={styles.imagePlaceholderText}>Image Placeholder</Text>
+      <View style={styles.imageContainer}>
+        <Image
+          key={card.id}
+          source={imageUrl ? { uri: imageUrl } : null}
+          style={styles.image}
+          contentFit="cover"
+          transition={250}
+          cachePolicy="memory-disk"
+        />
       </View>
     </View>
   );
@@ -43,7 +52,7 @@ const styles = StyleSheet.create({
   title: { 
     fontSize: 26, 
     fontWeight: "800", 
-    marginBottom: 6 
+    marginBottom: 6,
   },
   metaRow: {
     flexDirection: "row",
@@ -71,7 +80,7 @@ const styles = StyleSheet.create({
   summary: { 
     fontSize: 16, 
     lineHeight: 22, 
-    marginBottom: 10 
+    marginBottom: 10,
   },
   address: {
     fontSize: 14,
@@ -79,17 +88,16 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     marginBottom: 16,
   },
-  imagePlaceholder: {
+  imageContainer: {
     flex: 1,
     borderRadius: 16,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: "#e5e5e5",
     backgroundColor: "#f5f5f5",
-    justifyContent: "center",
-    alignItems: "center",
   },
-  imagePlaceholderText: { 
-    fontSize: 14, 
-    opacity: 0.7 
+  image: {
+    width: "100%",
+    height: "100%",
   },
 });

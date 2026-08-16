@@ -219,3 +219,12 @@ func (rm *RoomManager) UnregisterConn(code string, conn *websocket.Conn) {
 func (rm *RoomManager) GetRoomCards(ctx context.Context, code string) ([]util.Card, error) {
 	return rm.roomRepository.GetRoomCards(ctx, code)
 }
+
+func (rm *RoomManager) GetPhotoURL(photoName string) (string, error) {
+	photoURL, err := rm.placesClient.GetPhotoURL(photoName)
+	if err != nil {
+		return "", err
+	}
+
+	return photoURL, nil
+}

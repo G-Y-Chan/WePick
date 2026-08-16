@@ -8,6 +8,7 @@ type Props = {
   height: number;
   topCard?: Card;
   nextCard?: Card;
+  bufferCards?: Card[];
   panHandlers: any;
   position: Animated.ValueXY;
   rotate: any;
@@ -21,6 +22,7 @@ export function SwipeDeck(props: Props) {
     height,
     topCard,
     nextCard,
+    bufferCards = [],
     panHandlers,
     position,
     rotate,
@@ -40,14 +42,28 @@ export function SwipeDeck(props: Props) {
         style={[styles.edgeGlow, styles.rightEdge, { opacity: rightGlowOpacity }]}
       />
 
+      {bufferCards.map((card) => (
+        <View
+          key={`buffer-${card.id}`}
+          pointerEvents="none"
+          style={[styles.card, styles.hiddenBufferCard]}
+        >
+          <SwipeCard card={card} />
+        </View>
+      ))}
+
       {nextCard ? (
-        <Animated.View style={[styles.card, { transform: [{ scale: nextScale }] }]}>
+        <Animated.View
+          key={`next-${nextCard.id}`}
+          style={[styles.card, { transform: [{ scale: nextScale }] }]}
+        >
           <SwipeCard card={nextCard} />
         </Animated.View>
       ) : null}
 
       {topCard ? (
         <Animated.View
+          key={`top-${topCard.id}`}
           {...panHandlers}
           style={[
             styles.card,
@@ -97,5 +113,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: "white",
     zIndex: 2,
+  },
+  hiddenBufferCard: {
+    opacity: 0.01,
+    zIndex: -1,
   },
 });

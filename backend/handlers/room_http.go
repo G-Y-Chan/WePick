@@ -153,3 +153,25 @@ func (s *Server) HandleGetCardData(w http.ResponseWriter, req *http.Request) {
 		Cards:  cards,
 	})
 }
+
+func (s *Server) HandleGetImage(w http.ResponseWriter, req *http.Request) {
+	photoName := req.URL.Query().Get("photoName")
+	if photoName == "" {
+		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+			Header: "Image Error",
+			Body:   "missing photo name parameter",
+		})
+		return
+	}
+
+	photoUri, err := s.RoomManager.GetPhotoURL(photoName)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, util.ErrorResponse{
+			Header: "Image Error",
+			Body:   "failed to fetch image",
+		})
+		return
+	}
+
+	http.Redirect(w, req, photoUri, http.StatusFound)
+}

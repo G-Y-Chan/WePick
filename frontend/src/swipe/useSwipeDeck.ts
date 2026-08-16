@@ -122,18 +122,21 @@ export function useSwipeDeck({ data, width, onSwipe }: Params) {
   const topCard = data[index];
   const nextCard = data[index + 1];
 
+  const bufferCards = data.slice(index + 2, index + 4);
+
   return {
     index,
     done,
     topCard,
     nextCard,
+    bufferCards,
     panHandlers: panResponder.panHandlers,
     position,
     rotate,
     leftGlowOpacity,
     rightGlowOpacity,
     nextScale,
-    forceSwipe, // optional for buttons later
+    forceSwipe,
     resetPosition,
   };
 }

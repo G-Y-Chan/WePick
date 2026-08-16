@@ -8,6 +8,7 @@ export type Card = {
   openNow: boolean;
   summary: string;
   address: string;
+  photoName?: string;
 };
 
 export type SwipeDirection = "left" | "right";

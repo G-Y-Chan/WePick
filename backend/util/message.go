@@ -16,6 +16,7 @@ type Card struct {
 	OpenNow     bool    `json:"openNow"`
 	Summary     string  `json:"summary"`
 	Address     string  `json:"address"`
+	PhotoName   string  `json:"photoName,omitempty"`
 }
 
 type Message struct {

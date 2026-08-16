@@ -91,9 +91,40 @@ func (pc *PlacesClient) buildTextSearchRequest(filters util.Filters, pageToken s
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Goog-Api-Key", pc.APIKey)
 
-	req.Header.Set("X-Goog-FieldMask", "places.id,places.displayName.text,places.shortFormattedAddress,places.primaryTypeDisplayName.text,places.priceLevel,places.rating,places.userRatingCount,places.currentOpeningHours.openNow,places.editorialSummary.text,places.location,nextPageToken")
+	req.Header.Set("X-Goog-FieldMask", "places.id,places.displayName.text,places.shortFormattedAddress,places.primaryTypeDisplayName.text,places.priceLevel,places.rating,places.userRatingCount,places.currentOpeningHours.openNow,places.editorialSummary.text,places.location,places.photos,nextPageToken")
 
 	return req, nil
+}
+
+func (pc *PlacesClient) GetPhotoURL(photoName string) (string, error) {
+	googleURL := fmt.Sprintf(
+		photoEndpoint,
+		photoName,
+		pc.APIKey,
+	)
+
+	req, err := http.NewRequest(http.MethodGet, googleURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to build request: %w", err)
+	}
+
+	resp, err := pc.HTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("places api network error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("google api returned status code: %d", resp.StatusCode)
+	}
+
+	// Decode the JSON containing the safe CDN URL
+	var mediaResp PhotoMediaResponse
+	if err := json.NewDecoder(resp.Body).Decode(&mediaResp); err != nil {
+		return "", fmt.Errorf("failed to decode google image response: %w", err)
+	}
+
+	return mediaResp.PhotoUri, nil
 }
 
 // ==========================================
@@ -156,6 +187,11 @@ func mapPlacesToCards(places []Place, centerLat, centerLng float64, maxRadius fl
 
 		priceDisplay := mapPriceLevel(place.PriceLevel)
 
+		photoName := ""
+		if len(place.Photos) > 0 {
+			photoName = place.Photos[0].Name
+		}
+
 		cards = append(cards, util.Card{
 			ID:          place.ID,
 			Title:       place.DisplayName.Text,
@@ -166,6 +202,7 @@ func mapPlacesToCards(places []Place, centerLat, centerLng float64, maxRadius fl
 			OpenNow:     place.CurrentOpeningHours.OpenNow,
 			Summary:     place.EditorialSummary.Text,
 			Address:     place.ShortFormattedAddress,
+			PhotoName:   photoName,
 		})
 	}
 	return cards, hitEdge

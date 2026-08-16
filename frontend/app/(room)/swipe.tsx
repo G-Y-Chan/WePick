@@ -47,11 +47,9 @@ export default function SwipeScreen() {
     let cancelled = false;
 
     async function load() {
-      // 1. Bail out early if we don't have a room code yet
       if (!roomCode) return;
 
       try {
-        // 2. Fetch data using the actual roomCode instead of the placeholder
         const res = await getCardData(roomCode);
 
         if (!cancelled) {
@@ -70,15 +68,15 @@ export default function SwipeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [setPlaces, roomCode]); // 3. Added roomCode to the dependency array
+  }, [setPlaces, roomCode]);
 
   // Send vote event
   const handleSwipe = useCallback(
     (card: Card, direction: SwipeDirection) => {
       const result =
-       direction === "right"
-        ? "ACCEPT"
-         : "REJECT";
+        direction === "right"
+          ? "ACCEPT"
+          : "REJECT";
 
       const voteEventMessage: Message = {
         Header: "VOTE_EVENT",
@@ -123,6 +121,7 @@ export default function SwipeScreen() {
         height={height}
         topCard={deck.topCard}
         nextCard={deck.nextCard}
+        bufferCards={deck.bufferCards}
         panHandlers={deck.panHandlers}
         position={deck.position}
         rotate={deck.rotate}
