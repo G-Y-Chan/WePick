@@ -1,70 +1,54 @@
-package handlers
+package api
 
 import (
-	"backend/util"
+	"backend/internal/room"
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 )
-
-// ==========================================
-// Request DTO Structs
-// ==========================================
-
-type StartRoomPayload struct {
-	Filters util.Filters `json:"filters"`
-}
-
-// ==========================================
-// Helper Function
-// ==========================================
 
 func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		fmt.Printf("Failed to encode response: %v\n", err)
+		slog.Warn("failed to encode response", "error", err)
 	}
 }
 
-// ==========================================
-// HTTP Handlers
-// ==========================================
-
-// Route: GET /rooms
+// GET /rooms
 func (s *Server) GetRoomCode(w http.ResponseWriter, req *http.Request) {
 	code, err := s.RoomManager.AddRoom(req.Context())
 	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, util.ErrorResponse{
+		respondJSON(w, http.StatusInternalServerError, ErrorResponse{
 			Header: "Room Code Error",
 			Body:   err.Error(),
 		})
 		return
 	}
 
-	respondJSON(w, http.StatusOK, util.Message{
+	respondJSON(w, http.StatusOK, Message{
 		Header: "Room Code",
 		Body:   &code,
 	})
 }
 
-// Route: POST /rooms/{code}/join
+// POST /rooms/{code}/join
 func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
 	code := req.PathValue("code")
 	if code == "" {
-		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+		respondJSON(w, http.StatusBadRequest, ErrorResponse{
 			Header: "Join Room Error",
 			Body:   "missing room code in url path",
 		})
 		return
 	}
 
-	fmt.Println("Received request to join room:", code)
+	slog.Info("received request to join room", "code", code)
 
 	joined, err := s.RoomManager.ValidateRoomJoin(req.Context(), code)
 	if err != nil {
-		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+		respondJSON(w, http.StatusBadRequest, ErrorResponse{
 			Header: "Join Room Error",
 			Body:   err.Error(),
 		})
@@ -72,7 +56,7 @@ func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if !joined {
-		respondJSON(w, http.StatusForbidden, util.ErrorResponse{
+		respondJSON(w, http.StatusForbidden, ErrorResponse{
 			Header: "Join Room Error",
 			Body:   "room already started",
 		})
@@ -80,16 +64,17 @@ func (s *Server) HandleRoomJoin(w http.ResponseWriter, req *http.Request) {
 	}
 
 	strJoined := strconv.FormatBool(joined)
-	respondJSON(w, http.StatusOK, util.Message{
+	respondJSON(w, http.StatusOK, Message{
 		Header: "Join Status",
 		Body:   &strJoined,
 	})
 }
 
+// POST /rooms/{code}/start
 func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 	code := req.PathValue("code")
 	if code == "" {
-		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+		respondJSON(w, http.StatusBadRequest, ErrorResponse{
 			Header: "Start Room Error",
 			Body:   "missing room code in url path",
 		})
@@ -97,9 +82,8 @@ func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var payload StartRoomPayload
-
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+		respondJSON(w, http.StatusBadRequest, ErrorResponse{
 			Header: "Start Room Error",
 			Body:   "invalid JSON payload",
 		})
@@ -107,11 +91,20 @@ func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 	}
 	defer req.Body.Close()
 
-	fmt.Printf("Attempting to start room: %s with filters: %+v\n", code, payload.Filters)
+	filters := room.Filters{
+		Latitude:  payload.Filters.Latitude,
+		Longitude: payload.Filters.Longitude,
+		Radius:    payload.Filters.Radius,
+		MaxPrice:  payload.Filters.MaxPrice,
+		Category:  payload.Filters.Category,
+		OpenNow:   payload.Filters.OpenNow,
+	}
 
-	started, err := s.RoomManager.StartRoom(req.Context(), code, payload.Filters)
+	slog.Info("attempting to start room", "code", code, "filters", filters)
+
+	started, err := s.RoomManager.StartRoom(req.Context(), code, filters)
 	if err != nil {
-		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+		respondJSON(w, http.StatusBadRequest, ErrorResponse{
 			Header: "Start Room Error",
 			Body:   err.Error(),
 		})
@@ -119,16 +112,17 @@ func (s *Server) HandleRoomStart(w http.ResponseWriter, req *http.Request) {
 	}
 
 	strStarted := strconv.FormatBool(started)
-	respondJSON(w, http.StatusOK, util.Message{
+	respondJSON(w, http.StatusOK, Message{
 		Header: "Start Status",
 		Body:   &strStarted,
 	})
 }
 
+// GET /rooms/{code}/cards
 func (s *Server) HandleGetCardData(w http.ResponseWriter, req *http.Request) {
 	code := req.PathValue("code")
 	if code == "" {
-		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+		respondJSON(w, http.StatusBadRequest, ErrorResponse{
 			Header: "Get Card Data Error",
 			Body:   "missing room code in url path",
 		})
@@ -137,7 +131,7 @@ func (s *Server) HandleGetCardData(w http.ResponseWriter, req *http.Request) {
 
 	cards, err := s.RoomManager.GetRoomCards(req.Context(), code)
 	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, util.ErrorResponse{
+		respondJSON(w, http.StatusInternalServerError, ErrorResponse{
 			Header: "Get Card Data Error",
 			Body:   "Failed to fetch cards: " + err.Error(),
 		})
@@ -145,19 +139,37 @@ func (s *Server) HandleGetCardData(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if cards == nil {
-		cards = []util.Card{}
+		cards = []room.Card{}
 	}
 
-	respondJSON(w, http.StatusOK, util.Message{
+	// Translate domain cards to DTO cards
+	dtoCards := make([]Card, len(cards))
+	for i, c := range cards {
+		dtoCards[i] = Card{
+			ID:          c.ID,
+			Title:       c.Title,
+			Category:    c.Category,
+			PriceLevel:  c.PriceLevel,
+			Rating:      c.Rating,
+			ReviewCount: c.ReviewCount,
+			OpenNow:     c.OpenNow,
+			Summary:     c.Summary,
+			Address:     c.Address,
+			PhotoName:   c.PhotoName,
+		}
+	}
+
+	respondJSON(w, http.StatusOK, Message{
 		Header: "CARD_DATA",
-		Cards:  cards,
+		Cards:  dtoCards,
 	})
 }
 
+// GET /image
 func (s *Server) HandleGetImage(w http.ResponseWriter, req *http.Request) {
 	photoName := req.URL.Query().Get("photoName")
 	if photoName == "" {
-		respondJSON(w, http.StatusBadRequest, util.ErrorResponse{
+		respondJSON(w, http.StatusBadRequest, ErrorResponse{
 			Header: "Image Error",
 			Body:   "missing photo name parameter",
 		})
@@ -166,7 +178,7 @@ func (s *Server) HandleGetImage(w http.ResponseWriter, req *http.Request) {
 
 	photoUri, err := s.RoomManager.GetPhotoURL(photoName)
 	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, util.ErrorResponse{
+		respondJSON(w, http.StatusInternalServerError, ErrorResponse{
 			Header: "Image Error",
 			Body:   "failed to fetch image",
 		})

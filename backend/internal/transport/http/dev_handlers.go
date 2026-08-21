@@ -1,21 +1,22 @@
-package handlers
+//go:build dev
+
+package api
 
 import (
 	"encoding/json"
-	"backend/util"
-    "fmt"
-    "net/http"
+	"fmt"
+	"log/slog"
+	"net/http"
 )
 
+// Test handler — only compiled with `go build -tags dev`.
 func (s *Server) Test(w http.ResponseWriter, req *http.Request) {
-	// Inform client that the response type is JSON
 	w.Header().Set("Content-Type", "application/json")
-    // Set the HTTP status code (optional, http.StatusOK is 200).
 	w.WriteHeader(http.StatusOK)
 	testMessage := "This is a placeholder body."
-	m := util.Message{
-		Header: "testing", 
-		Body: &testMessage,
+	m := Message{
+		Header: "testing",
+		Body:   &testMessage,
 	}
 	if err := json.NewEncoder(w).Encode(m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -23,31 +24,27 @@ func (s *Server) Test(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// Headers handler — only compiled with `go build -tags dev`.
 func (s *Server) Headers(w http.ResponseWriter, req *http.Request) {
-
-    for name, headers := range req.Header {
-        for _, h := range headers {
-            fmt.Fprintf(w, "%v: %v\n", name, h)
-        }
-    }
+	for name, headers := range req.Header {
+		for _, h := range headers {
+			_, _ = fmt.Fprintf(w, "%v: %v\n", name, h)
+		}
+	}
 }
 
+// PostEmail handler — only compiled with `go build -tags dev`.
 func (s *Server) PostEmail(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	var email string
-
-	// Use json.NewDecoder to decode the stream directly into the struct
 	err := json.NewDecoder(req.Body).Decode(&email)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	} else {
-		fmt.Print(email)
 	}
+	slog.Info("email received (dev only)", "email", email)
 
-	// Inform client that the response type is JSON
 	w.Header().Set("Content-Type", "application/json")
-    // Set the HTTP status code (optional, http.StatusOK is 200).
 	w.WriteHeader(http.StatusOK)
 }

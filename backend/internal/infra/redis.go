@@ -1,7 +1,7 @@
 package infra
 
 import (
-	"backend/config"
+	"backend/internal/config"
 
 	"github.com/redis/go-redis/v9"
 )
