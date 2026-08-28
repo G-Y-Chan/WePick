@@ -24,5 +24,16 @@ type serviceOptions struct {
 
 // NewService is the single constructor/composition point for the domain service.
 func NewService(repo Repository, places PlacesProvider, broadcaster Broadcaster, opts ...ServiceOption) Service {
-	return nil // scaffolding only; implementation belongs to Phase 5
+	o := &serviceOptions{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	return &roomService{
+		repo:           repo,
+		places:         places,
+		broadcaster:    broadcaster,
+		max:            roomCodeSpace,
+		reconnectDelay: eventReconnectDelay,
+	}
 }
