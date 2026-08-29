@@ -6,6 +6,7 @@ import (
 	"backend/infra"
 	"backend/room"
 	"backend/services"
+	"context"
 	"net/http"
 
 	"github.com/joho/godotenv"
@@ -23,7 +24,7 @@ func main() {
 	placesClient := services.NewPlacesClient(cfg.GooglePlaces.APIKey)
 	roomManager := room.NewRoomManager(1_000_000, roomRepo, placesClient)
 
-	go roomManager.StartEventListener()
+	go roomManager.StartEventListener(context.Background())
 
 	s := &handlers.Server{
 		RoomManager: roomManager,
