@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/rand"
 	"time"
 
@@ -36,6 +36,7 @@ type roomService struct {
 
 	max            int
 	reconnectDelay time.Duration
+	logger         *slog.Logger
 }
 
 // EventLoopRunner is an optional capability implemented by *roomService. The
@@ -146,7 +147,11 @@ func (s *roomService) SubmitVote(ctx context.Context, vote Vote) error {
 	}
 
 	if vote.Result != VoteAccept {
-		log.Printf("ignoring non-ACCEPT vote room=%s card=%s result=%s", vote.Room, vote.CardID, vote.Result)
+		s.logger.Info("ignoring non-ACCEPT vote",
+			"room_code", vote.Room.String(),
+			"card_id", vote.CardID,
+			"result", string(vote.Result),
+		)
 		return nil
 	}
 
@@ -162,10 +167,13 @@ func (s *roomService) SubmitVote(ctx context.Context, vote Vote) error {
 			CardID: vote.CardID,
 		}
 		if err := s.repo.PublishEvent(ctx, evt); err != nil {
-			// Preserve legacy behavior: the vote has already been recorded, so
-			// we do not fail the request if the cross-process broadcast cannot
-			// be delivered. Log for visibility; Phase 7 replaces this with slog.
-			log.Printf("failed to publish majority event room=%s card=%s: %v", vote.Room, vote.CardID, err)
+			// do not fail the request if the cross-process broadcast cannot
+			// be delivered.
+			s.logger.Warn("failed to publish majority event",
+				"room_code", vote.Room.String(),
+				"card_id", vote.CardID,
+				"err", err,
+			)
 		}
 	}
 
@@ -203,7 +211,10 @@ func (s *roomService) Disconnect(ctx context.Context, code Code, client Client) 
 	s.broadcaster.Unregister(code, client)
 
 	if _, err := s.repo.DecrClientCount(ctx, code); err != nil {
-		log.Printf("failed to decrement client count room=%s: %v", code, err)
+		s.logger.Warn("failed to decrement client count",
+			"room_code", code.String(),
+			"err", err,
+		)
 	}
 }
 
@@ -211,19 +222,26 @@ func (s *roomService) Disconnect(ctx context.Context, code Code, client Client) 
 // to connected clients. It blocks until ctx is canceled. It is intended to run
 // in a dedicated goroutine owned by the composition root.
 func (s *roomService) StartEventListener(ctx context.Context) {
+	s.logger.Info("starting room event listener")
+	defer s.logger.Info("room event listener stopped")
+
 	for {
 		sub, err := s.repo.SubscribeEvents(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Printf("failed to subscribe to room events: %v; retrying in %s", err, s.reconnectDelay)
+			s.logger.Warn("failed to subscribe to room events; retrying",
+				"retry_delay", s.reconnectDelay,
+				"err", err,
+			)
 			if !s.sleepWithContext(ctx) {
 				return
 			}
 			continue
 		}
 
+		s.logger.Info("subscribed to room events")
 		s.consumeEvents(ctx, sub)
 		_ = sub.Close()
 
@@ -231,7 +249,9 @@ func (s *roomService) StartEventListener(ctx context.Context) {
 			return
 		}
 
-		log.Printf("room event subscription closed unexpectedly; reconnecting in %s", s.reconnectDelay)
+		s.logger.Warn("room event subscription closed unexpectedly; reconnecting",
+			"retry_delay", s.reconnectDelay,
+		)
 		if !s.sleepWithContext(ctx) {
 			return
 		}
@@ -258,13 +278,16 @@ func (s *roomService) consumeEvents(ctx context.Context, sub EventSubscription) 
 func (s *roomService) handleEvent(evt Event) {
 	switch evt.Type {
 	case EventRoomStarted:
-		log.Printf("received room_started event room=%s", evt.Room)
+		s.logger.Info("received room_started event", "room_code", evt.Room.String())
 		s.broadcaster.BroadcastRoomStarted(evt.Room)
 	case EventMajorityFound:
-		log.Printf("received majority_found event room=%s card=%s", evt.Room, evt.CardID)
+		s.logger.Info("received majority_found event",
+			"room_code", evt.Room.String(),
+			"card_id", evt.CardID,
+		)
 		s.broadcaster.BroadcastMajorityFound(evt.Room, evt.CardID)
 	default:
-		log.Printf("ignoring unknown room event type=%q", evt.Type)
+		s.logger.Warn("ignoring unknown room event", "event_type", string(evt.Type))
 	}
 }
 

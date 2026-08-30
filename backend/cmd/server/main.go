@@ -5,6 +5,10 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 
@@ -13,6 +17,7 @@ import (
 	"backend/internal/adapters/redisrepo"
 	"backend/internal/adapters/wshub"
 	"backend/internal/domain/room"
+	"backend/internal/platform/logging"
 	"backend/internal/platform/redisconn"
 	httptransport "backend/internal/transport/http"
 	"backend/internal/transport/http/middleware"
@@ -39,26 +44,20 @@ func main() {
 		cfg.Port = "8090"
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := logging.New(slog.LevelInfo)
 
-	// Composition root: build adapters, wire the domain service, then hand the
-	// service to the transport layer. This is the only file in the module that
-	// should import every one of these packages directly.
+	// ---- Composition root ------------------------------------------------
 	rdb := redisconn.New(cfg.Redis)
 	repo := redisrepo.New(rdb)
 	placesClient := places.New(cfg.GooglePlaces.APIKey, nil)
 	hub := wshub.NewHub(logger)
 
-	svc := room.NewService(repo, placesClient, hub)
+	svc := room.NewService(repo, placesClient, hub, room.WithLogger(logger))
 
-	// Start the cross-process Redis pub/sub event listener. Phase 7 replaces
-	// this Background context with the signal-derived root context and waits
-	// for the goroutine during graceful shutdown.
-	if runner, ok := svc.(room.EventLoopRunner); ok {
-		go runner.StartEventListener(context.Background())
-	}
-
-	httpHandler := httptransport.NewHandler(svc, logger)
+	httpHandler := httptransport.NewHandler(svc, logger).
+		WithHealthChecker(func(ctx context.Context) error {
+			return rdb.Ping(ctx).Err()
+		})
 	wsHandler := wstransport.NewHandler(svc, allowedOrigins, logger)
 
 	root := http.NewServeMux()
@@ -73,10 +72,59 @@ func main() {
 		),
 	)
 
-	addr := ":" + cfg.Port
-	logger.Info("server starting", "addr", addr)
-	if err := http.ListenAndServe(addr, handler); err != nil {
-		logger.Error("server failed", "err", err)
-		os.Exit(1)
+	// ---- Signal-aware lifecycle ------------------------------------------
+	ctx, stop := signal.NotifyContext(context.Background(),
+		os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	var wg sync.WaitGroup
+
+	// Start the cross-process Redis pub/sub event listener with a cancellable
+	// context derived from the signal-aware root so the goroutine can be
+	// stopped cleanly on shutdown.
+	if runner, ok := svc.(room.EventLoopRunner); ok {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runner.StartEventListener(ctx)
+		}()
 	}
+
+	srv := &http.Server{
+		Addr:              ":" + cfg.Port,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	// Run the HTTP server in a goroutine so we can listen for shutdown signals
+	// on the main goroutine.
+	serverErr := make(chan error, 1)
+	go func() {
+		logger.Info("server starting", "addr", srv.Addr)
+		serverErr <- srv.ListenAndServe()
+	}()
+
+	// Block until a signal arrives or the server dies unexpectedly.
+	select {
+	case <-ctx.Done():
+		logger.Info("shutting down gracefully", "reason", ctx.Err())
+	case err := <-serverErr:
+		if err != nil && err != http.ErrServerClosed {
+			logger.Error("server failed", "err", err)
+		}
+	}
+
+	// Give in-flight requests a bounded window to complete.
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		logger.Error("graceful shutdown failed", "err", err)
+	}
+
+	// Trigger the event-listener goroutine stop and wait for it.
+	stop()
+	wg.Wait()
+
+	logger.Info("server stopped")
 }

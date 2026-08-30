@@ -1,6 +1,9 @@
 package room
 
-import "context"
+import (
+	"context"
+	"log/slog"
+)
 
 // Service is the sole entry point transport adapters (HTTP, WS) are allowed to depend on.
 // No transport package may import Repository, PlacesProvider, or Broadcaster directly.
@@ -19,7 +22,15 @@ type Service interface {
 type ServiceOption func(*serviceOptions)
 
 type serviceOptions struct {
-	// reserved for future use (e.g. configurable retry, timeouts)
+	logger *slog.Logger
+}
+
+// WithLogger injects a structured logger into the domain service. When nil the
+// service falls back to slog.Default().
+func WithLogger(logger *slog.Logger) ServiceOption {
+	return func(o *serviceOptions) {
+		o.logger = logger
+	}
 }
 
 // NewService is the single constructor/composition point for the domain service.
@@ -29,11 +40,16 @@ func NewService(repo Repository, places PlacesProvider, broadcaster Broadcaster,
 		opt(o)
 	}
 
+	if o.logger == nil {
+		o.logger = slog.Default()
+	}
+
 	return &roomService{
 		repo:           repo,
 		places:         places,
 		broadcaster:    broadcaster,
 		max:            roomCodeSpace,
 		reconnectDelay: eventReconnectDelay,
+		logger:         o.logger,
 	}
 }
