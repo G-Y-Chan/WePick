@@ -1,10 +1,13 @@
 package handlers
 
 import (
-	"net/http"
-	"github.com/gorilla/websocket"
+	"context"
 	"fmt"
+	"net/http"
+
 	"backend/util"
+
+	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
@@ -28,9 +31,9 @@ func (s *Server) HandleRoomWS(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("New WebSocket connection for room: %s\n", roomCode)
 
-	err = s.RoomManager.RegisterConn(roomCode, conn)
+	err = s.RoomManager.RegisterConn(r.Context(), roomCode, conn)
 	if err != nil {
-		_ = conn.WriteJSON(map[string]any{"type":"ERROR","message": err.Error()})
+		_ = conn.WriteJSON(map[string]any{"type": "ERROR", "message": err.Error()})
 		_ = conn.Close()
 		return
 	}
@@ -39,7 +42,7 @@ func (s *Server) HandleRoomWS(w http.ResponseWriter, r *http.Request) {
 	for {
 		var msg util.Message
 		if err := conn.ReadJSON(&msg); err != nil {
-			s.RoomManager.UnregisterConn(roomCode, conn)
+			s.RoomManager.UnregisterConn(context.Background(), roomCode, conn)
 			_ = conn.Close()
 			return
 		}

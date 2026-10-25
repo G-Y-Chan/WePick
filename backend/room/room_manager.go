@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -44,17 +45,7 @@ func (rm *RoomManager) HandleVote(ctx context.Context, vote util.Vote) error {
 		return nil
 	}
 
-	// get client count from redis
-	numClients, err := rm.roomRepository.GetRoomClientCount(ctx, vote.Room)
-	if err != nil {
-		return err
-	}
-
-	if numClients == 0 {
-		return fmt.Errorf("room %s has no connected clients", vote.Room)
-	}
-
-	majorityFound, err := rm.roomRepository.IncrementAcceptVote(ctx, vote.Room, vote.Id, int(numClients))
+	majorityFound, err := rm.roomRepository.IncrementAcceptVote(ctx, vote.Room, vote.Id)
 	if err != nil {
 		return err
 	}
@@ -66,19 +57,47 @@ func (rm *RoomManager) HandleVote(ctx context.Context, vote util.Vote) error {
 	return nil
 }
 
-func (rm *RoomManager) StartEventListener() {
-	ch := rm.roomRepository.SubscribeToRoomEvents()
+func (rm *RoomManager) StartEventListener(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Stopping room event listener context done...")
+			return
+		default:
+			pubsub, err := rm.roomRepository.SubscribeToRoomEvents(ctx)
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				log.Printf("Failed to subscribe to room events: %v. Retrying in 2 seconds...", err)
+				time.Sleep(2 * time.Second)
+				continue
+			}
 
-	for msg := range ch {
-		var event RoomEvent
+			log.Println("Successfully subscribed to room events")
+			ch := pubsub.Channel()
 
-		err := json.Unmarshal([]byte(msg.Payload), &event)
-		if err != nil {
-			log.Println("invalid event:", err)
-			continue
+			for msg := range ch {
+				var event RoomEvent
+
+				err := json.Unmarshal([]byte(msg.Payload), &event)
+				if err != nil {
+					log.Println("invalid event:", err)
+					continue
+				}
+
+				rm.handleEvent(event)
+			}
+
+			// Clean up the pubsub connection when channel closes
+			_ = pubsub.Close()
+
+			if ctx.Err() != nil {
+				return
+			}
+			log.Println("Room event subscription channel closed unexpectedly. Reconnecting in 2 seconds...")
+			time.Sleep(2 * time.Second)
 		}
-
-		rm.handleEvent(event)
 	}
 }
 
@@ -123,11 +142,11 @@ func (rm *RoomManager) GenerateRoomCode() string {
 	return fmt.Sprintf("%06d", rand.Intn(rm.max))
 }
 
-func (rm *RoomManager) AddRoom() (string, error) {
+func (rm *RoomManager) AddRoom(ctx context.Context) (string, error) {
 	for {
 		code := rm.GenerateRoomCode()
 
-		roomCreated, err := rm.roomRepository.CreateRoom(code)
+		roomCreated, err := rm.roomRepository.CreateRoom(ctx, code)
 		if err != nil {
 			return "", err
 		}
@@ -140,9 +159,7 @@ func (rm *RoomManager) AddRoom() (string, error) {
 	}
 }
 
-func (rm *RoomManager) StartRoom(code string, filters util.Filters) (bool, error) {
-	ctx := context.Background()
-
+func (rm *RoomManager) StartRoom(ctx context.Context, code string, filters util.Filters) (bool, error) {
 	cards, nextPageToken, err := rm.placesClient.FetchCards(filters, "")
 	if err != nil {
 		return false, fmt.Errorf("failed to fetch places: %w", err)
@@ -160,7 +177,7 @@ func (rm *RoomManager) StartRoom(code string, filters util.Filters) (bool, error
 		return false, fmt.Errorf("failed to save page token: %w", err)
 	}
 
-	err = rm.roomRepository.StartRoom(code)
+	err = rm.roomRepository.StartRoom(ctx, code)
 	if err != nil {
 		return false, err
 	}
@@ -168,8 +185,8 @@ func (rm *RoomManager) StartRoom(code string, filters util.Filters) (bool, error
 	return true, nil
 }
 
-func (rm *RoomManager) ValidateRoomJoin(code string) (bool, error) {
-	started, err := rm.roomRepository.CheckIfRoomStarted(code)
+func (rm *RoomManager) ValidateRoomJoin(ctx context.Context, code string) (bool, error) {
+	started, err := rm.roomRepository.CheckIfRoomStarted(ctx, code)
 	if err != nil {
 		return false, err
 	}
@@ -180,8 +197,8 @@ func (rm *RoomManager) ValidateRoomJoin(code string) (bool, error) {
 	return true, nil
 }
 
-func (rm *RoomManager) RegisterConn(code string, conn *websocket.Conn) error {
-	exists, err := rm.roomRepository.CheckIfRoomExists(code)
+func (rm *RoomManager) RegisterConn(ctx context.Context, code string, conn *websocket.Conn) error {
+	exists, err := rm.roomRepository.CheckIfRoomExists(ctx, code)
 	if err != nil {
 		return err
 	}
@@ -199,11 +216,11 @@ func (rm *RoomManager) RegisterConn(code string, conn *websocket.Conn) error {
 
 	roomConnections.Add(conn)
 
-	_, err = rm.roomRepository.IncrementRoomClientCount(context.Background(), code)
+	_, err = rm.roomRepository.IncrementRoomClientCount(ctx, code)
 	return err
 }
 
-func (rm *RoomManager) UnregisterConn(code string, conn *websocket.Conn) {
+func (rm *RoomManager) UnregisterConn(ctx context.Context, code string, conn *websocket.Conn) {
 	rm.mu.RLock()
 	roomConnections, exists := rm.rooms[code]
 	rm.mu.RUnlock()
@@ -213,7 +230,7 @@ func (rm *RoomManager) UnregisterConn(code string, conn *websocket.Conn) {
 	}
 
 	roomConnections.Remove(conn)
-	_, _ = rm.roomRepository.DecrementRoomClientCount(context.Background(), code)
+	_, _ = rm.roomRepository.DecrementRoomClientCount(ctx, code)
 }
 
 func (rm *RoomManager) GetRoomCards(ctx context.Context, code string) ([]util.Card, error) {

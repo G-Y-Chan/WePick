@@ -6,11 +6,85 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-const roomEventsChannel = "room_events"
+const (
+	roomEventsChannel = "room_events"
+	fieldStarted      = "started"
+	fieldCards        = "cards"
+	fieldPageToken    = "pageToken"
+	fieldClientCount  = "client_count"
+
+	roomTTL = 24 * time.Hour
+)
+
+// ==========================================
+// Key Generators
+// ==========================================
+
+func roomKey(code string) string {
+	return "room:" + code
+}
+
+func voteKey(roomID string) string {
+	return fmt.Sprintf("votes:%s", roomID)
+}
+
+// ==========================================
+// Lua Scripts
+// ==========================================
+
+var incrementAndCheckScript = redis.NewScript(`
+local voteKey = KEYS[1]
+local roomKey = KEYS[2]
+local voteID = ARGV[1]
+local ttl = ARGV[2]
+
+-- Increment the vote
+local newCount = redis.call("HINCRBY", voteKey, voteID, 1)
+redis.call("EXPIRE", voteKey, ttl)
+
+-- Fetch the live client count directly from the room hash
+local numClientsStr = redis.call("HGET", roomKey, "client_count")
+local numClients = 0
+if numClientsStr then
+	numClients = tonumber(numClientsStr)
+end
+
+-- Compare (Checking for unanimity/100% acceptance)
+if numClients > 0 and newCount >= numClients then
+	return 1
+else
+	return 0
+end
+`)
+
+var createRoomScript = redis.NewScript(`
+if redis.call("EXISTS", KEYS[1]) == 1 then
+	return 0
+end
+-- Initialize started flag and client_count in the same hash
+redis.call("HSET", KEYS[1], "started", "false", "client_count", 0)
+-- Set TTL
+redis.call("EXPIRE", KEYS[1], ARGV[1])
+return 1
+`)
+
+var startRoomScript = redis.NewScript(`
+if redis.call("EXISTS", KEYS[1]) == 0 then
+	return 0
+end
+redis.call("HSET", KEYS[1], "started", "true")
+redis.call("PUBLISH", ARGV[1], ARGV[2])
+return 1
+`)
+
+// ==========================================
+// Repository
+// ==========================================
 
 type RoomRepository struct {
 	rdb *redis.Client
@@ -22,74 +96,52 @@ func NewRoomRepository(rdb *redis.Client) *RoomRepository {
 	}
 }
 
-var incrementAndCheckScript = redis.NewScript(`
-local newCount = redis.call("HINCRBY", KEYS[1], ARGV[1], 1)
-local numClients = tonumber(ARGV[2])
-if newCount == numClients then
-	return 1
-else
-	return 0
-end
-`)
-
-func (rr *RoomRepository) IncrementAcceptVote(
-	ctx context.Context,
-	roomID string,
-	voteID string,
-	numClients int,
-) (bool, error) {
-
-	key := fmt.Sprintf("votes:%s", roomID)
-
+func (rr *RoomRepository) IncrementAcceptVote(ctx context.Context, roomID string, voteID string) (bool, error) {
 	result, err := incrementAndCheckScript.Run(
 		ctx,
 		rr.rdb,
-		[]string{key}, // KEYS[1]
-		voteID,        // ARGV[1]
-		numClients,    // ARGV[2]
+		[]string{voteKey(roomID), roomKey(roomID)}, // KEYS[1], KEYS[2]
+		voteID,                 // ARGV[1]
+		int(roomTTL.Seconds()), // ARGV[2]
 	).Int()
 
 	if err != nil {
 		return false, err
 	}
 
-	// result == 1 means threshold reached
 	return result == 1, nil
 }
 
-func (rr *RoomRepository) IncrementRoomClientCount(
-	ctx context.Context,
-	roomCode string,
-) (int64, error) {
-	key := fmt.Sprintf("room:%s:client_count", roomCode)
-	count, err := rr.rdb.Incr(ctx, key).Result()
+func (rr *RoomRepository) IncrementRoomClientCount(ctx context.Context, roomCode string) (int64, error) {
+	count, err := rr.rdb.HIncrBy(ctx, roomKey(roomCode), fieldClientCount, 1).Result()
 	if err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
-func (rr *RoomRepository) DecrementRoomClientCount(
-	ctx context.Context,
-	roomCode string,
-) (int64, error) {
-	key := fmt.Sprintf("room:%s:client_count", roomCode)
-	count, err := rr.rdb.Decr(ctx, key).Result()
+func (rr *RoomRepository) DecrementRoomClientCount(ctx context.Context, roomCode string) (int64, error) {
+	count, err := rr.rdb.HIncrBy(ctx, roomKey(roomCode), fieldClientCount, -1).Result()
 	if err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
-func (rr *RoomRepository) GetRoomClientCount(
-	ctx context.Context,
-	roomCode string,
-) (int64, error) {
-	key := fmt.Sprintf("room:%s:client_count", roomCode)
-	count, err := rr.rdb.Get(ctx, key).Int64()
-	if err != nil && err != redis.Nil {
+func (rr *RoomRepository) GetRoomClientCount(ctx context.Context, roomCode string) (int64, error) {
+	countStr, err := rr.rdb.HGet(ctx, roomKey(roomCode), fieldClientCount).Result()
+	if err == redis.Nil {
+		return 0, nil // Handle case where client_count field might be missing
+	}
+	if err != nil {
 		return 0, err
 	}
+
+	count, err := strconv.ParseInt(countStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
 	return count, nil
 }
 
@@ -107,33 +159,30 @@ func (rr *RoomRepository) PublishMajorityFound(ctx context.Context, roomID strin
 	return rr.rdb.Publish(ctx, roomEventsChannel, payload).Err()
 }
 
-func (rr *RoomRepository) CreateRoom(code string) (bool, error) {
-	script := `
-		if redis.call("EXISTS", KEYS[1]) == 1 then
-			return 0
-		end
-		redis.call("HSET", KEYS[1], "started", "false")
-		return 1
-	`
+func (rr *RoomRepository) CreateRoom(ctx context.Context, code string) (bool, error) {
+	res, err := createRoomScript.Run(
+		ctx,
+		rr.rdb,
+		[]string{roomKey(code)},
+		int(roomTTL.Seconds()), // ARGV[1] (TTL in seconds)
+	).Int()
 
-	res, err := rr.rdb.Eval(context.Background(), script, []string{"room:" + code}).Int()
-	if err != nil {
-		return false, err
-	}
-
-	return res == 1, nil
-}
-
-func (rr *RoomRepository) CheckIfRoomExists(code string) (bool, error) {
-	res, err := rr.rdb.Exists(context.Background(), "room:"+code).Result()
 	if err != nil {
 		return false, err
 	}
 	return res == 1, nil
 }
 
-func (rr *RoomRepository) CheckIfRoomStarted(code string) (bool, error) {
-	startedStr, err := rr.rdb.HGet(context.Background(), "room:"+code, "started").Result()
+func (rr *RoomRepository) CheckIfRoomExists(ctx context.Context, code string) (bool, error) {
+	res, err := rr.rdb.Exists(ctx, roomKey(code)).Result()
+	if err != nil {
+		return false, err
+	}
+	return res == 1, nil
+}
+
+func (rr *RoomRepository) CheckIfRoomStarted(ctx context.Context, code string) (bool, error) {
+	startedStr, err := rr.rdb.HGet(ctx, roomKey(code), fieldStarted).Result()
 	if err == redis.Nil {
 		return false, fmt.Errorf("room not found")
 	}
@@ -149,7 +198,7 @@ func (rr *RoomRepository) CheckIfRoomStarted(code string) (bool, error) {
 	return started, nil
 }
 
-func (rr *RoomRepository) StartRoom(code string) error {
+func (rr *RoomRepository) StartRoom(ctx context.Context, code string) error {
 	event := RoomEvent{
 		Type: "room_started",
 		Room: code,
@@ -160,20 +209,11 @@ func (rr *RoomRepository) StartRoom(code string) error {
 		return err
 	}
 
-	script := `
-		if redis.call("EXISTS", KEYS[1]) == 0 then
-			return 0
-		end
-		redis.call("HSET", KEYS[1], "started", "true")
-		redis.call("PUBLISH", ARGV[1], ARGV[2])
-		return 1
-	`
-
-	res, err := rr.rdb.Eval(
-		context.Background(),
-		script,
-		[]string{"room:" + code},
-		"room_events",
+	res, err := startRoomScript.Run(
+		ctx,
+		rr.rdb,
+		[]string{roomKey(code)},
+		roomEventsChannel,
 		payload,
 	).Int()
 
@@ -187,16 +227,16 @@ func (rr *RoomRepository) StartRoom(code string) error {
 	return nil
 }
 
-func (rr *RoomRepository) SubscribeToRoomEvents() <-chan *redis.Message {
-	pubsub := rr.rdb.Subscribe(context.Background(), "room_events")
+func (rr *RoomRepository) SubscribeToRoomEvents(ctx context.Context) (*redis.PubSub, error) {
+	pubsub := rr.rdb.Subscribe(ctx, roomEventsChannel)
 
 	// ensure subscription is ready
-	_, err := pubsub.Receive(context.Background())
-	if err != nil {
-		panic(err)
+	if _, err := pubsub.Receive(ctx); err != nil {
+		_ = pubsub.Close()
+		return nil, err
 	}
 
-	return pubsub.Channel()
+	return pubsub, nil
 }
 
 func (rr *RoomRepository) SetRoomCards(ctx context.Context, code string, cards []util.Card) error {
@@ -205,13 +245,11 @@ func (rr *RoomRepository) SetRoomCards(ctx context.Context, code string, cards [
 		return err
 	}
 
-	key := "room:" + code
-	return rr.rdb.HSet(ctx, key, "cards", data).Err()
+	return rr.rdb.HSet(ctx, roomKey(code), fieldCards, data).Err()
 }
 
 func (rr *RoomRepository) GetRoomCards(ctx context.Context, code string) ([]util.Card, error) {
-	key := "room:" + code
-	data, err := rr.rdb.HGet(ctx, key, "cards").Bytes()
+	data, err := rr.rdb.HGet(ctx, roomKey(code), fieldCards).Bytes()
 	if err == redis.Nil {
 		return nil, nil // No cards stored yet
 	}
@@ -228,13 +266,11 @@ func (rr *RoomRepository) GetRoomCards(ctx context.Context, code string) ([]util
 }
 
 func (rr *RoomRepository) SetPageToken(ctx context.Context, code string, token string) error {
-	key := "room:" + code
-	return rr.rdb.HSet(ctx, key, "pageToken", token).Err()
+	return rr.rdb.HSet(ctx, roomKey(code), fieldPageToken, token).Err()
 }
 
 func (rr *RoomRepository) GetPageToken(ctx context.Context, code string) (string, error) {
-	key := "room:" + code
-	token, err := rr.rdb.HGet(ctx, key, "pageToken").Result()
+	token, err := rr.rdb.HGet(ctx, roomKey(code), fieldPageToken).Result()
 
 	if err == redis.Nil {
 		return "", nil
